@@ -1,7 +1,7 @@
 import os
 import subprocess as sp
 from utils.recipie import Recipie
-from utils.config import Environment, GlobalConfig, ProjectConfig, ActionConfig
+from utils.state import State
 
 class BashRecipie(Recipie):
     cwd: str
@@ -17,45 +17,45 @@ class BashRecipie(Recipie):
         new_env = os.environ.copy() | self.environment
         proc = sp.run(self.command, cwd=self.cwd, shell=True, env=new_env)
 
-def create(env: Environment, global_config: GlobalConfig, project_config: ProjectConfig, action_config: ActionConfig, extra_args: list[str]) -> Recipie:
+def create(state: State) -> Recipie:
     # make sure action_config includes the required fields
     required_fields = ["cwd", "command", "env"]
     missed_fields = []
     for field in required_fields:
-        if field not in action_config.config:
+        if field not in state.action_config.config:
             missed_fields.append(field)
     if len(missed_fields) > 0:
-        print(f"Action {action_config.name} for project {project_config.name} is missing the following fields: {missed_fields}")
+        print(f"Action {state.action_config.name} for project {state.project_config.name} is missing the following fields: {missed_fields}")
         exit(1)
 
     # make sure action_config filed types are correct
     bad_type = False
-    if type(action_config["cwd"]) != str:
-        print(f"Action {action_config.name} for project {project_config.name} has an incorrect type for cwd.")
+    if type(state.action_config["cwd"]) != str:
+        print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for cwd.")
         bad_type = True
-    if type(action_config["command"]) != str:
-        print(f"Action {action_config.name} for project {project_config.name} has an incorrect type for command.")
+    if type(state.action_config["command"]) != str:
+        print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for command.")
         bad_type = True
-    if type(action_config["env"]) != dict:
-        print(f"Action {action_config.name} for project {project_config.name} has an incorrect type for env.")
+    if type(state.action_config["env"]) != dict:
+        print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for env.")
         bad_type = True
     else:
-        for key, value in action_config["env"].items():
+        for key, value in state.action_config["env"].items():
             if type(key) != str or type(value) != str:
-                print(f"Action {action_config.name} for project {project_config.name} has an incorrect type for env.")
+                print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for env.")
                 bad_type = True
                 break
     if bad_type:
         exit(1)
 
     # expand user in cwd
-    cwd = os.path.expanduser(action_config["cwd"])
+    cwd = os.path.expanduser(state.action_config["cwd"])
     # check cwd is valid
     if not os.path.isdir(cwd):
-        print(f"Action {action_config.name} for project {project_config.name} has an invalid cwd.")
+        print(f"Action {state.action_config.name} for project {state.project_config.name} has an invalid cwd.")
         exit(1)
 
-    command = action_config["command"]
-    environment = action_config["env"]
+    command = state.action_config["command"]
+    environment = state.action_config["env"]
 
     return BashRecipie(cwd, command, environment)

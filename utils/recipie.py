@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .config import Environment, GlobalConfig, ProjectConfig, ActionConfig
+from .state import State
 
 class Recipie:
     def __init__(self) -> None:
@@ -10,17 +10,17 @@ class Recipie:
     def run(self) -> None:
         raise NotImplementedError()
 
-def load_recipie(env: Environment, global_config: GlobalConfig, project_config: ProjectConfig, action_config: ActionConfig, extra_args: list[str]) -> Recipie:
-    recipie  = action_config.recipie
-    recipie_path = os.path.join(env.recipie_folder, f"{recipie}.py")
+def load_recipie(state: State) -> Recipie:
+    recipie  = state.action_config.recipie
+    recipie_path = os.path.join(state.env.recipie_folder, f"{recipie}.py")
 
     if not os.path.isfile(recipie_path):
-        print(f"Recipie {recipie} is required by {action_config.name} {project_config.name} is not installed.")
-        print(f"please add it to {env.recipie_folder}")
+        print(f"Recipie {recipie} is required by {state.action_config.name} {state.project_config.name} is not installed.")
+        print(f"please add it to {state.env.recipie_folder}")
         exit(1)
     
     # load recipie path
-    sys.path.append(env.recipie_folder)
+    sys.path.append(state.env.recipie_folder)
     recipie_module = __import__(recipie)
 
     # check module includes a function called create
@@ -35,15 +35,11 @@ def load_recipie(env: Environment, global_config: GlobalConfig, project_config: 
         print(f"Create provided by {recipie} is not callable.")
         exit(1)
     if create.__annotations__ != {
-        "env": Environment,
-        "global_config": GlobalConfig,
-        "project_config": ProjectConfig,
-        "action_config": ActionConfig,
-        "extra_args": list[str],
+        "state": State,
         "return": Recipie
     }:
         print(f"Create provided by {recipie} is not of the correct type.")
         exit(1)
     
     # call create function
-    return create(env, global_config, project_config, action_config, extra_args)
+    return create(state)
