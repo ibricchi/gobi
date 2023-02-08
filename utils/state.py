@@ -4,6 +4,9 @@ class State:
     def __init__(self):
         self.__dict__["info"] = {}
 
+    def has(self, key: str) -> bool:
+        return key in self.info
+
     def set(self, key: str, value: Any, frozen: bool = True) -> None:
         self.info[key] = (frozen, value)
 

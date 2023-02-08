@@ -9,6 +9,7 @@ class Environment:
     config_folder: str
     config_file: str
     recipie_folder: str
+    tool_folder: str
 
     @classmethod
     def default(cls):
@@ -33,9 +34,15 @@ class Environment:
         recipie_folder = os.path.join(config_folder, "recipies")
         if not os.path.isdir(recipie_folder):
             print(f"Could not find gobi recipie folder at expected: '{recipie_folder}'")
+            exit(1)
+        
+        tool_folder = os.path.join(config_folder, "tools")
+        if not os.path.isdir(tool_folder):
+            print(f"Could not find gobi tool folder at expected: '{tool_folder}'")
+            exit(1)
         
 
-        return cls(config_folder, config_file, recipie_folder)
+        return cls(config_folder, config_file, recipie_folder, tool_folder)
 
 class ActionConfig:
     env: Environment
@@ -58,6 +65,7 @@ class ProjectConfig:
     name: str
     actions: dict[str, Any]
     config: dict[str, Any]
+    tools: list[str]
 
     def __init__(self, env: Environment, project: str, project_path: str) -> None:
         self.env = env
@@ -75,6 +83,21 @@ class ProjectConfig:
             except tomli.TOMLDecodeError as e:
                 print(f"Error parsing config file '{self.path}' for {project}: {e}")
                 exit(1)
+
+        # load tools or defualt to []
+        if not "gobi" in self.config or not "tools" in self.config["gobi"]:
+            self.tools = []
+        else:
+            self.tools = self.config["gobi"]["tools"]
+        
+        # check types of tools is all strings
+        wrong_tool_type = []
+        for tool in self.tools:
+            if not isinstance(tool, str):
+                wrong_tool_type.append(tool)
+        if len(wrong_tool_type) > 0:
+            print(f"Config file for {project} '{self.path}' has non-string tools: {wrong_tool_type}")
+            exit(1)
 
         # check that there is at least one action
         if not "action" in self.config:
