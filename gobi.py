@@ -12,8 +12,8 @@ if __name__ == "__main__":
     state = State()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", help="Action to perform")
     parser.add_argument("project", help="Project to perform action on")
+    parser.add_argument("action", help="Action to perform")
 
     args, unknown = parser.parse_known_args()
 

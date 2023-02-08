@@ -61,9 +61,14 @@ class BinaryManager(Tool):
             main_path = os.path.join(project_binary_dir, target)
             target_path = os.path.join(project_binary_dir, f"{target}-{self.version}")
             
-            # check if target exists and remove it
-            if os.path.isfile(target_path):
+            if os.path.isfile(target_path) or os.path.islink(target_path):
                 os.remove(target_path)
+
+            if os.path.isfile(main_path) or os.path.islink(main_path):
+                os.remove(main_path)
+            else:
+                # print what main_path is
+                print(main_path)
 
             os.symlink(source, target_path)
             os.symlink(target_path, main_path)
