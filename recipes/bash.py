@@ -1,67 +1,83 @@
 import os
 import subprocess as sp
+from jsonschema import validate
+
 from utils.recipe import Recipe
 from utils.state import State
+from utils.action import Action
 
-class Bashrecipe(Recipe):
+
+class BashAction(Action):
     cwd: str
     command: str
     environment: dict[str, str]
+    shell: str
 
-    def __init__(self, cwd: str, command: str, environment: dict[str, str]) -> None:
+    def __init__(
+        self, cwd: str, command: str, environment: dict[str, str], shell: str
+    ) -> None:
         self.cwd = cwd
         self.command = command
         self.environment = environment
+        self.shell = shell
 
     def run(self) -> None:
-        new_env = os.environ.copy() | self.environment
-        proc = sp.run(self.command, cwd=self.cwd, shell=True, env=new_env, executable='/bin/bash')
+        cwd = os.path.expandvars(os.path.expanduser(self.cwd))
+        command = self.command
+        environment = {}
+        for key, value in self.environment.items():
+            new_value = os.path.expandvars(value)
+            environment[key] = new_value
+        shell = self.shell
+
+        new_env = os.environ.copy() | environment
+
+        sp.run(command, cwd=cwd, shell=True, env=new_env, executable=shell)
+
+
+bash_schema = {
+    "type": "object",
+    "properties": {
+        "bash": {
+            "type": "object",
+            "patternProperties": {
+                ".*": {
+                    "type": "object",
+                    "properties": {
+                        "cwd": {"type": "string"},
+                        "command": {"type": "string"},
+                        "shell": {"type": "string"},
+                        "env": {
+                            "type": "object",
+                            "patternProperties": {".*": {"type": "string"}},
+                        },
+                    },
+                    "required": ["cwd", "command"],
+                },
+            },
+            "minProperties": 1,
+        },
+    },
+}
+
+
+class Bash(Recipe):
+    state: State
+
+    def __init__(self, state: State) -> None:
+        self.state = state
+
+        validate(instance=state.project_config.config, schema=bash_schema)
+
+        if "bash" in state.project_config.config:
+            for action_name, action_config in state.project_config["bash"].items():
+                self.state.register_action(action_name, BashAction(
+                    cwd=action_config["cwd"],
+                    command=action_config["command"],
+                    environment=action_config.get("env", {}),
+                    shell=action_config.get("shell", "/bin/bash"),
+                ))
+
 
 def create(state: State) -> Recipe:
-    # make sure action_config includes the required fields
-    required_fields = ["cwd", "command"]
-    missed_fields = []
-    for field in required_fields:
-        if field not in state.action_config.config:
-            missed_fields.append(field)
-    if len(missed_fields) > 0:
-        print(f"Action {state.action_config.name} for project {state.project_config.name} is missing the following fields: {missed_fields}")
-        exit(1)
-
-    # make sure action_config filed types are correct
-    bad_type = False
-    if type(state.action_config["cwd"]) != str:
-        print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for cwd.")
-        bad_type = True
-    if type(state.action_config["command"]) != str:
-        print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for command.")
-        bad_type = True
-    if "env" in state.action_config.config:
-        if type(state.action_config["env"]) != dict:
-            print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for env.")
-            bad_type = True
-        else:
-            for key, value in state.action_config["env"].items():
-                if type(key) != str or type(value) != str:
-                    print(f"Action {state.action_config.name} for project {state.project_config.name} has an incorrect type for env.")
-                    bad_type = True
-                    break
-    if bad_type:
-        exit(1)
-
-    # expand user in cwd
-    cwd = os.path.expanduser(state.action_config["cwd"])
-    cwd = os.path.expandvars(cwd)
-
-    # check cwd is valid
-    if not os.path.isdir(cwd):
-        print(f"Action {state.action_config.name} for project {state.project_config.name} has an invalid cwd.")
-        exit(1)
-
-    command = state.action_config["command"]
-    
-    environment = {}
-    if "env" in state.action_config.config:
-        environment = state.action_config["env"]
-
-    return Bashrecipe(cwd, command, environment)
+    return Bash(state)

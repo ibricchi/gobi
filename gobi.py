@@ -1,48 +1,50 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-import argparse
+import sys
 
 from utils.config import Environment, GlobalConfig
-from utils.recipe import load_recipe
 from utils.state import State
-from utils.tools import load_tools
+from utils.recipe import load_recipes
+from utils.help import help_menu
 
 if __name__ == "__main__":
     state = State()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("project", help="Project to perform action on")
-    parser.add_argument("action", help="Action to perform")
-
-    args, unknown = parser.parse_known_args()
-
-    state.set("args", unknown) 
-
+    # get project and optional action from command line by parsing the arguments
+    # gobi <project> <action>? <args>?
+    if len(sys.argv) < 2:
+        help_menu()
+    
     env = Environment.default()
     state.set("env", env)
 
     global_config = GlobalConfig(env)
     state.set("global_config", global_config)
-    
-    project_config = global_config.get_project(args.project)
-    state.set("project_config", project_config)
 
-    tools = load_tools(state)
-    state.set("tools", tools)
+    if sys.argv[1] in state.commands:
+        state.set("command", sys.argv[1])
+        state.set("args", sys.argv[2:] if len(sys.argv) > 2 else [])
+        state.commands[state.command].run()
+    else:
+        state.set("project", sys.argv[1])
+        state.set("action", sys.argv[2] if len(sys.argv) > 2 else None)
+        state.set("args", sys.argv[3:] if len(sys.argv) > 3 else [])
 
-    action_config = project_config.get_action(args.action)
-    state.set("action_config", action_config)
+        project_config = global_config.get_project(state.project)
+        state.set("project_config", project_config)
 
-    for tool in tools:
-        tool.run_before_recipe_load()
+        recipes = load_recipes(state)
+        state.set("recipes", recipes)
 
-    recipe = load_recipe(state)
+        if not state.action in state.actions:
+            print(f"Action '{state.action}' not found in project '{state.project}'")
+            exit(1)
 
-    for tool in tools:
-        tool.run_after_before_recipe_run()
+        for recipe in recipes:
+            recipe.pre_action()
+        
+        state.actions[state.action].run()
 
-    recipe.run()
-
-    for tool in tools:
-        tool.run_after_recipe_run()
+        for recipe in recipes:
+            recipe.post_action()

@@ -1,8 +1,14 @@
 from typing import Any
 
+from .action import Action, get_default_commands
+
 class State:
     def __init__(self):
         self.__dict__["info"] = {}
+        self.__dict__["commands"] = get_default_commands()
+        for command in self.commands:
+            self.__dict__["commands"][command].state = self
+        self.__dict__["actions"] = {}
 
     def has(self, key: str) -> bool:
         return key in self.info
@@ -10,9 +16,16 @@ class State:
     def set(self, key: str, value: Any, frozen: bool = True) -> None:
         self.info[key] = (frozen, value)
 
+    def register_action(self, key: str, action: Action) -> None:
+        if key in self.actions:
+            print(f"In {self.project_config.name}, action {key} registered more than once.")
+            print(f"Remember that some recipies may register actions for you.")
+            exit(1)
+        self.actions[key] = action
+
     def get(self, key: str) -> Any:
         return self.info[key][1]
-    
+
     def __getattr__(self, __name: str) -> Any:
         try:
             _, out = self.__dict__['info'][__name]

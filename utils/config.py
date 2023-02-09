@@ -9,7 +9,6 @@ class Environment:
     config_folder: str
     config_file: str
     recipe_folder: str
-    tool_folder: str
 
     @classmethod
     def default(cls):
@@ -36,36 +35,14 @@ class Environment:
             print(f"Could not find gobi recipe folder at expected: '{recipe_folder}'")
             exit(1)
         
-        tool_folder = os.path.join(config_folder, "tools")
-        if not os.path.isdir(tool_folder):
-            print(f"Could not find gobi tool folder at expected: '{tool_folder}'")
-            exit(1)
-        
-
-        return cls(config_folder, config_file, recipe_folder, tool_folder)
-
-class ActionConfig:
-    env: Environment
-    name: str
-    recipe: str
-    config: dict[str, Any]
-
-    def __init__(self, env: Environment, action: str, config: dict[str, Any]) -> None:
-        self.env = env
-        self.config = config
-        self.recipe = self.config["recipe"]
-        self.name = action
-
-    def __getitem__(self, key):
-        return self.config[key]
+        return cls(config_folder, config_file, recipe_folder)
 
 class ProjectConfig:
     env: Environment
     path: str
     name: str
-    actions: dict[str, Any]
     config: dict[str, Any]
-    tools: list[str]
+    recipes: list[str]
 
     def __init__(self, env: Environment, project: str, project_path: str) -> None:
         self.env = env
@@ -84,62 +61,26 @@ class ProjectConfig:
                 print(f"Error parsing config file '{self.path}' for {project}: {e}")
                 exit(1)
 
-        # load tools or defualt to []
-        if not "gobi" in self.config or not "tools" in self.config["gobi"]:
-            self.tools = []
-        else:
-            self.tools = self.config["gobi"]["tools"]
+        # check that gobi has a recipes key
+        if not "gobi" in self.config:
+            print(f"Config file for {project} '{self.path}' does not contain a 'gobi' key")
+            exit(1)
+        if not "recipes" in self.config["gobi"]:
+            print(f"Config file for {project} '{self.path}' does not contain a 'gobi.recipes' key")
+            exit(1)
+        if not isinstance(self.config["gobi"]["recipes"], list):
+            print(f"Config file for {project} '{self.path}' does not contain a 'gobi.recipes' key of type list")
+            exit(1)
+        for recipe in self.config["gobi"]["recipes"]:
+            if not isinstance(recipe, str):
+                print(f"Config file for {project} '{self.path}' does not contain a 'gobi.recipes' key of type list of strings")
+                exit(1)
         
-        # check types of tools is all strings
-        wrong_tool_type = []
-        for tool in self.tools:
-            if not isinstance(tool, str):
-                wrong_tool_type.append(tool)
-        if len(wrong_tool_type) > 0:
-            print(f"Config file for {project} '{self.path}' has non-string tools: {wrong_tool_type}")
-            exit(1)
-
-        # check that there is at least one action
-        if not "action" in self.config:
-            print(f"Config file for {project} '{self.path}' does not contain an 'action' key")
-            exit(1)
-        if not isinstance(self.config["action"], dict):
-            print(
-                f"Config file for {project} '{self.path}' has an 'action' key that is not a dictionary"
-            )
-            exit(1)
-
-        # ensure all actions have a recipe value
-        no_recipe_actions = []
-        wrong_recipe_type_actions = []
-        for _, action in self.config["action"].items():
-            if not "recipe" in action:
-                no_recipe_actions.append(action)
-            elif not isinstance(action["recipe"], str):
-                wrong_recipe_type_actions.append(action)
-        if len(no_recipe_actions) > 0:
-            print(
-                f"Config file for {project} '{self.path}' has actions with no recipe: {', '.join(no_recipe_actions)}"
-            )
-            exit(1)
-        if len(wrong_recipe_type_actions) > 0:
-            print(
-                f"Config file for {project} '{self.path}' has actions with recipe that is not a string: {', '.join(wrong_recipe_type_actions)}"
-            )
-            exit(1)
-
-        self.actions = self.config["action"]
+        self.recipes = self.config["gobi"]["recipes"]
 
     def __getitem__(self, key):
         return self.config[key]
     
-    def get_action(self, action: str) -> ActionConfig:
-        if not action in self.actions:
-            print(f"Project {self.name} has no action '{action}'")
-            exit(1)
-        
-        return ActionConfig(self.env, action, self.actions[action])
-
 class GlobalConfig:
     env: Environment
     path: str
@@ -164,17 +105,10 @@ class GlobalConfig:
         if not isinstance(self.config["projects"], dict):
             print(f"Config file '{self.path}' has a 'projects' key that is not a dictionary")
             exit(1)
-
-        # check that all projects are str -> str mappings
-        wrong_type_projects = []
-        for project in self.config["projects"]:
-            if not isinstance(self.config["projects"][project], str):
-                wrong_type_projects.append(project)
-        if len(wrong_type_projects) > 0:
-            print(
-                f"Config file '{self.path}' has projects with values that are not strings: {', '.join(wrong_type_projects)}"
-            )
-            exit(1)
+        for _, path in self.config["projects"].items():
+            if not isinstance(path, str):
+                print(f"Config file '{self.path}' has a 'projects' key that is not a dictionary of strings")
+                exit(1)
         
         self.projects = self.config["projects"]
 
