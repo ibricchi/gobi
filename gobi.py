@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 
 from utils.config import Environment, GlobalConfig
-from utils.recipie import load_recipie
+from utils.recipe import load_recipe
 from utils.state import State
 from utils.tools import load_tools
 
@@ -35,14 +35,14 @@ if __name__ == "__main__":
     state.set("action_config", action_config)
 
     for tool in tools:
-        tool.run_before_recipie_load()
+        tool.run_before_recipe_load()
 
-    recipie = load_recipie(state)
-
-    for tool in tools:
-        tool.run_after_before_recipie_run()
-
-    recipie.run()
+    recipe = load_recipe(state)
 
     for tool in tools:
-        tool.run_after_recipie_run()
+        tool.run_after_before_recipe_run()
+
+    recipe.run()
+
+    for tool in tools:
+        tool.run_after_recipe_run()

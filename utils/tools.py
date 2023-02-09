@@ -4,13 +4,13 @@ import sys
 from .state import State
 
 class Tool:
-    def run_before_recipie_load(self) -> None:
+    def run_before_recipe_load(self) -> None:
         pass
 
-    def run_after_before_recipie_run(self) -> None:
+    def run_after_before_recipe_run(self) -> None:
         pass
     
-    def run_after_recipie_run(self) -> None:
+    def run_after_recipe_run(self) -> None:
         pass
 
 def load_tools(state: State) -> list[Tool]:

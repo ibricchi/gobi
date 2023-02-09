@@ -1,9 +1,9 @@
 import os
 import subprocess as sp
-from utils.recipie import Recipie
+from utils.recipe import Recipe
 from utils.state import State
 
-class BashRecipie(Recipie):
+class Bashrecipe(Recipe):
     cwd: str
     command: str
     environment: dict[str, str]
@@ -17,7 +17,7 @@ class BashRecipie(Recipie):
         new_env = os.environ.copy() | self.environment
         proc = sp.run(self.command, cwd=self.cwd, shell=True, env=new_env, executable='/bin/bash')
 
-def create(state: State) -> Recipie:
+def create(state: State) -> Recipe:
     # make sure action_config includes the required fields
     required_fields = ["cwd", "command"]
     missed_fields = []
@@ -64,4 +64,4 @@ def create(state: State) -> Recipie:
     if "env" in state.action_config.config:
         environment = state.action_config["env"]
 
-    return BashRecipie(cwd, command, environment)
+    return Bashrecipe(cwd, command, environment)

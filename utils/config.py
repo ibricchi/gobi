@@ -8,7 +8,7 @@ from typing import Any
 class Environment:
     config_folder: str
     config_file: str
-    recipie_folder: str
+    recipe_folder: str
     tool_folder: str
 
     @classmethod
@@ -31,9 +31,9 @@ class Environment:
             print(f"Could not find gobi config file at expected: '{config_file}'")
             exit(1)
 
-        recipie_folder = os.path.join(config_folder, "recipies")
-        if not os.path.isdir(recipie_folder):
-            print(f"Could not find gobi recipie folder at expected: '{recipie_folder}'")
+        recipe_folder = os.path.join(config_folder, "recipes")
+        if not os.path.isdir(recipe_folder):
+            print(f"Could not find gobi recipe folder at expected: '{recipe_folder}'")
             exit(1)
         
         tool_folder = os.path.join(config_folder, "tools")
@@ -42,18 +42,18 @@ class Environment:
             exit(1)
         
 
-        return cls(config_folder, config_file, recipie_folder, tool_folder)
+        return cls(config_folder, config_file, recipe_folder, tool_folder)
 
 class ActionConfig:
     env: Environment
     name: str
-    recipie: str
+    recipe: str
     config: dict[str, Any]
 
     def __init__(self, env: Environment, action: str, config: dict[str, Any]) -> None:
         self.env = env
         self.config = config
-        self.recipie = self.config["recipie"]
+        self.recipe = self.config["recipe"]
         self.name = action
 
     def __getitem__(self, key):
@@ -109,22 +109,22 @@ class ProjectConfig:
             )
             exit(1)
 
-        # ensure all actions have a recipie value
-        no_recipie_actions = []
-        wrong_recipie_type_actions = []
+        # ensure all actions have a recipe value
+        no_recipe_actions = []
+        wrong_recipe_type_actions = []
         for _, action in self.config["action"].items():
-            if not "recipie" in action:
-                no_recipie_actions.append(action)
-            elif not isinstance(action["recipie"], str):
-                wrong_recipie_type_actions.append(action)
-        if len(no_recipie_actions) > 0:
+            if not "recipe" in action:
+                no_recipe_actions.append(action)
+            elif not isinstance(action["recipe"], str):
+                wrong_recipe_type_actions.append(action)
+        if len(no_recipe_actions) > 0:
             print(
-                f"Config file for {project} '{self.path}' has actions with no recipie: {', '.join(no_recipie_actions)}"
+                f"Config file for {project} '{self.path}' has actions with no recipe: {', '.join(no_recipe_actions)}"
             )
             exit(1)
-        if len(wrong_recipie_type_actions) > 0:
+        if len(wrong_recipe_type_actions) > 0:
             print(
-                f"Config file for {project} '{self.path}' has actions with recipie that is not a string: {', '.join(wrong_recipie_type_actions)}"
+                f"Config file for {project} '{self.path}' has actions with recipe that is not a string: {', '.join(wrong_recipe_type_actions)}"
             )
             exit(1)
 
@@ -157,7 +157,7 @@ class GlobalConfig:
                 print(f"Error parsing config file '{self.path}': {e}")
                 exit(1)
 
-        # check that config has recipies key
+        # check that config has recipes key
         if not "projects" in self.config:
             print(f"Config file '{self.path}' does not contain a 'projects'")
             exit(1)

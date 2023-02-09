@@ -26,7 +26,7 @@ class WorkspaceManager(Tool):
         else:
             self.version = "default"
 
-    def run_before_recipie_load(self) -> None:
+    def run_before_recipe_load(self) -> None:
         project_name = self.state.project_config.name
         project_workspace_dir = os.path.join(self.base_workspace_dir, project_name, self.version)
 

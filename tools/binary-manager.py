@@ -25,7 +25,7 @@ class BinaryManager(Tool):
         else:
             self.version = "default"
 
-    def run_after_recipie_run(self) -> None:
+    def run_after_recipe_run(self) -> None:
         binary_map = {}
         # check if action has binary-manger set to true
         if "binary-manager" in self.state.action_config.config:
