@@ -5,7 +5,7 @@ import sys
 
 from utils.config import Environment, GlobalConfig
 from utils.state import State
-from utils.recipe import load_recipes
+from utils.loaders import load_recipes, load_commands
 from utils.help import help_menu
 
 if __name__ == "__main__":
@@ -21,6 +21,8 @@ if __name__ == "__main__":
 
     global_config = GlobalConfig(env)
     state.set("global_config", global_config)
+
+    load_commands(state)
 
     if sys.argv[1] in state.commands:
         state.set("command", sys.argv[1])

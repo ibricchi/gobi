@@ -1,13 +1,12 @@
 from typing import Any
 
-from .action import Action, get_default_commands
+from .action import Action
+from .command import Command
 
 class State:
     def __init__(self):
         self.__dict__["info"] = {}
-        self.__dict__["commands"] = get_default_commands()
-        for command in self.commands:
-            self.__dict__["commands"][command].state = self
+        self.__dict__["commands"] = {}
         self.__dict__["actions"] = {}
 
     def has(self, key: str) -> bool:
@@ -22,6 +21,13 @@ class State:
             print(f"Remember that some recipies may register actions for you.")
             exit(1)
         self.actions[key] = action
+    
+    def register_command(self, key: str, command: Command) -> None:
+        if key in self.commands:
+            print(f"In {self.project_config.name}, command {key} registered more than once.")
+            print(f"Remember that some recipies may register commands for you.")
+            exit(1)
+        self.commands[key] = command
 
     def get(self, key: str) -> Any:
         return self.info[key][1]

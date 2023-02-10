@@ -3,12 +3,14 @@ from dataclasses import dataclass
 import tomli
 import os
 from typing import Any
+from jsonschema import validate
 
 @dataclass(frozen=True)
 class Environment:
     config_folder: str
     config_file: str
     recipe_folder: str
+    command_folder: str
 
     @classmethod
     def default(cls):
@@ -35,7 +37,12 @@ class Environment:
             print(f"Could not find gobi recipe folder at expected: '{recipe_folder}'")
             exit(1)
         
-        return cls(config_folder, config_file, recipe_folder)
+        command_folder = os.path.join(config_folder, "commands")
+        if not os.path.isdir(command_folder):
+            print(f"Could not find gobi command folder at expected: '{command_folder}'")
+            exit(1)
+        
+        return cls(config_folder, config_file, recipe_folder, command_folder)
 
 class ProjectConfig:
     env: Environment
@@ -80,12 +87,39 @@ class ProjectConfig:
 
     def __getitem__(self, key):
         return self.config[key]
-    
+
+global_config_schema = {
+    "type": "object",
+    "properties": {
+        "projects": {
+            "type": "object",
+            "patternProperties": {
+                ".*": {
+                    "type": "string"
+                }
+            }
+        },
+        "gobi": {
+            "type": "object",
+            "properties": {
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "required": ["projects"]
+}
+
 class GlobalConfig:
     env: Environment
     path: str
     projects: dict[str, str]
     config: dict[str, Any]
+    commands: list[str]
 
     def __init__(self, env: Environment) -> None:
         self.env = env
@@ -99,22 +133,18 @@ class GlobalConfig:
                 exit(1)
 
         # check that config has recipes key
-        if not "projects" in self.config:
-            print(f"Config file '{self.path}' does not contain a 'projects'")
-            exit(1)
-        if not isinstance(self.config["projects"], dict):
-            print(f"Config file '{self.path}' has a 'projects' key that is not a dictionary")
-            exit(1)
-        for _, path in self.config["projects"].items():
-            if not isinstance(path, str):
-                print(f"Config file '{self.path}' has a 'projects' key that is not a dictionary of strings")
-                exit(1)
+        validate(instance=self.config, schema=global_config_schema)
         
         self.projects = self.config["projects"]
 
+        if "gobi" in self.config and "commands" in self.config["gobi"]:
+            self.commands = self.config["gobi"]["commands"]
+        else:
+            self.commands = []
+
     def __getitem__(self, key):
         return self.config[key]
-    
+
     def get_project(self, project: str):
         if not project in self.projects:
             print(f"Project {project} not found in config file '{self.path}'")
