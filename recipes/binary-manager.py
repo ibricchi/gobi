@@ -2,8 +2,18 @@ import os
 import argparse
 from jsonschema import validate
 
+from utils.action import Action
 from utils.recipe import Recipe
 from utils.state import State
+
+class BinaryAction(Action):
+    dir: str
+
+    def __init__(self, state: State, tag: str) -> None:
+        self.dir = os.path.join(state.env.config_folder, "binaries")
+    
+    def run(self) -> None:
+        print(self.dir)
 
 binary_manager_schema = {
     "type": "object",
@@ -53,6 +63,12 @@ class BinaryManager(Recipe):
         validate(
             instance=self.state.project_config.config, schema=binary_manager_schema
         )
+
+        self.state.register_action("binaries-path", BinaryAction(self.state, self.tag))
+
+    def pre_action(self) -> None:
+        project_name = self.state.project_config.name
+        os.environ["GOBI_BINARIES_DIR"] = os.path.join(self.base_binary_dir, project_name)
 
     def post_action(self) -> None:
         action_binary_map = self.state.project_config.config["binary-manager"]
