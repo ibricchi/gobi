@@ -1,19 +1,65 @@
 import os
 import argparse
 from jsonschema import validate
+import shutil
 
-from utils.action import Action
-from utils.recipe import Recipe
-from utils.state import State
+from utils.containers import State, Recipe, Action
+from utils.logger import Logger
 
-class BinaryAction(Action):
+class BinaryDirectoryAction(Action):
     dir: str
 
-    def __init__(self, state: State, tag: str) -> None:
-        self.dir = os.path.join(state.env.config_folder, "binaries")
+    def __init__(self, dir: str) -> None:
+        super().__init__()
+        self.dir = os.path.join(dir)
     
-    def run(self) -> None:
+    def run(self, state: State) -> None:
         print(self.dir)
+
+class BinaryCleanAction(Action):
+    dir: str
+
+    def __init__(self, dir: str) -> None:
+        super().__init__()
+        self.dir = os.path.join(dir)
+    
+    def run(self, state: State) -> None:
+        user_confirmation = input(f"Are you sure you want to delete {self.dir}? [yes/no] ")
+        if user_confirmation == "yes":
+            shutil.rmtree(self.dir)
+        else:
+            Logger.fatal(f"[Action {self.name}] Aborting deletion of {self.dir}")
+
+class BinaryManagerAction(Action):
+    tag: str
+    dir: str
+    binaries: dict[str, str]
+    link_main: bool
+
+    def __init__(self, tag, dir: str, binaries: dict[str, str], link_main: bool) -> None:
+        super().__init__()
+        self.tag = tag
+        self.dir = dir
+        self.binaries = binaries
+        self.link_main = link_main
+    
+    def run(self, state: State) -> None:
+        for name, path in self.binaries.items():
+            path = os.path.expanduser(os.path.expandvars(path))
+            if not os.path.exists(path):
+                Logger.warn(f"[Action {self.name}] Binary {name} has path {path} which does not exist")
+                continue
+            if not os.path.isdir(self.dir):
+                os.makedirs(self.dir)
+            
+            if os.path.exists(os.path.join(self.dir,  f"{name}-{self.tag}")):
+                os.remove(os.path.join(self.dir,  f"{name}-{self.tag}"))
+            os.symlink(path, os.path.join(self.dir, f"{name}-{self.tag}"))
+
+            if self.link_main:
+                if os.path.exists(os.path.join(self.dir, name)):
+                    os.remove(os.path.join(self.dir, name))
+                os.symlink(os.path.join(self.dir, f"{name}-{self.tag}"), os.path.join(self.dir, name))
 
 binary_manager_schema = {
     "type": "object",
@@ -34,78 +80,50 @@ binary_manager_schema = {
             "minProperties": 1,
         },
     },
-    "required": ["binary-manager"],
 }
 
 
 class BinaryManager(Recipe):
-    state: State
+    tag: str
+    link_main: bool
     base_binary_dir: str
 
     def __init__(self, state: State) -> None:
-        self.state = state
-        self.base_binary_dir = os.path.join(state.env.config_folder, "binaries")
+        self.link_main = True
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-t", "--tag")
-        parser.add_argument("--binary-manager-tag")
+        base_bianary_dir = os.path.join(state.env.config_folder, "binary-manager")
+        for project in state.project_breadcrumbs[1:]:
+            base_bianary_dir = os.path.join(base_bianary_dir, project.name)
 
-        args, _ = parser.parse_known_args(state.args)
-        self.args = args
+        self.base_binary_dir = base_bianary_dir
+        os.environ["GOBI_BINARY_MANAGER_DIR"] = self.base_binary_dir
 
-        if args.binary_manager_tag is not None:
-            self.tag = args.binary_manager_tag
-        elif args.tag is not None:
-            self.tag = args.tag
-        else:
-            self.tag = "default"
+    def validate(self, config: dict, state: State) -> None:
+        if "tag-manager" not in state.context:
+            Logger.fatal(f"[Recipe {self.name}] Recipe tag-manager is required for binary-manager")
+        self.tag = state.context["tag-manager"]["tag"]
 
-        validate(
-            instance=self.state.project_config.config, schema=binary_manager_schema
-        )
+        if "--binary-manager-no-link" in state.args:
+            self.link_main = False
+            state.args.pop(state.args.index("--binary-manager-no-link"))
 
-        self.state.register_action("binaries-path", BinaryAction(self.state, self.tag))
+        validate(instance=config, schema=binary_manager_schema)
 
-    def pre_action(self) -> None:
-        project_name = self.state.project_config.name
-        os.environ["GOBI_BINARIES_DIR"] = os.path.join(self.base_binary_dir, project_name)
+    def register_actions(self, config: dict, state: State) -> list[tuple[str, Action]]:
+        return [
+            ("bm-dir", BinaryDirectoryAction(os.path.join(self.base_binary_dir, self.tag))),
+            ("bm-clean", BinaryCleanAction(os.path.join(self.base_binary_dir, self.tag)))
+        ]
 
-    def post_action(self) -> None:
-        action_binary_map = self.state.project_config.config["binary-manager"]
-        action_name = self.state.action
-        if action_name in action_binary_map:
-            binary_map = action_binary_map[action_name]
-
-            project_name = self.state.project_config.name
-            project_binary_dir = os.path.join(self.base_binary_dir, project_name)
-
-            if not os.path.isdir(project_binary_dir):
-                os.makedirs(project_binary_dir)
-
-            for source, target in binary_map.items():
-                # expand environment variables in source and target
-                source = os.path.expandvars(source)
-                target = os.path.expandvars(target)
-                if not os.path.isfile(source):
-                    print(f"WARNING: binary-manager: binary {source} does not exist")
+    def register_hooks(self, config: dict, actions: dict[str, Action], state: State) -> None:
+        if "binary-manager" in config:
+            for action_name, action_config in config["binary-manager"].items():
+                if action_name not in actions:
+                    Logger.warn(f"[Recipe {self.name}] Action {action_name} does not exist, cannot register binary-manager hooks")
                     continue
-
-                # make soft link from source to target
-                main_path = os.path.join(project_binary_dir, target)
-                target_path = os.path.join(project_binary_dir, f"{target}-{self.tag}")
-
-                if os.path.isfile(target_path) or os.path.islink(target_path):
-                    os.remove(target_path)
-
-                if os.path.isfile(main_path) or os.path.islink(main_path):
-                    os.remove(main_path)
-                else:
-                    # print what main_path is
-                    print(main_path)
-
-                os.symlink(source, target_path)
-                os.symlink(target_path, main_path)
-
+                action = BinaryManagerAction(self.tag , self.base_binary_dir, action_config, self.link_main)
+                action.name = f"binary-manager-{action_name}-hook"
+                actions[action_name].hooks.append(action)
 
 def create(state: State) -> Recipe:
     return BinaryManager(state)

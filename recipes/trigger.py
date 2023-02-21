@@ -2,23 +2,22 @@ import os
 import subprocess as sp
 from jsonschema import validate
 
-from utils.recipe import Recipe
-from utils.state import State
-from utils.action import Action
-
+from utils.containers import State, Recipe, Action
+from utils.logger import Logger
 
 class TriggerAction(Action):
-    state: State
     actions: list[str]
 
-    def __init__(self, state: State, actions: list[str]) -> None:
-        self.state = state
+    def __init__(self, actions: list[str]) -> None:
+        super().__init__()
         self.actions = actions
 
-    def run(self) -> None:
+    def run(self, state: State) -> None:
         for action in self.actions:
-            self.state.actions[action].run()
-
+            if action not in state.project.actions:
+                Logger.warn(f"[Action {self.name}] Attempting to tigger action {action} which does not exist")
+                continue
+            state.project.actions[action].run(state)
 
 trigger_schema = {
     "type": "object",
@@ -40,35 +39,49 @@ trigger_schema = {
             },
             "minProperties": 1,
         },
+        "trigger-action": {
+            "type": "object",
+            "patternProperties": {
+                ".*": {
+                    "type": "object",
+                    "properties": {
+                        "actions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                        }
+                    },
+                    "required": ["actions"],
+                },
+            },
+            "minProperties": 1,
+        },
     },
 }
 
 
 class Trigger(Recipe):
-    state: State
-    actions: dict[str, list[str]]
+    def validate(self, config: dict, state: State) -> None:
+        validate(instance=config, schema=trigger_schema)
 
-    def __init__(self, state: State) -> None:
-        self.state = state
-        self.actions = {}
+    def register_actions(self, config: dict, state: State) -> list[tuple[str, Action]]:
+        if "trigger-action" in config:
+            for action_name, action_config in config["trigger-action"].items():
+                action = TriggerAction(action_config["actions"])
+                yield (action_name, action)
 
-        validate(instance=state.project_config.config, schema=trigger_schema)
-
-        if "trigger" in state.project_config.config:
-            for action_name, action_config in state.project_config["trigger"].items():
-                self.state.register_action(
-                    action_name, TriggerAction(state, action_config["actions"])
-                )
-                self.actions[action_name] = action_config["actions"]
-    
-    def pre_action(self) -> None:
-        if self.state.action in self.actions:
-            trigger_actions = self.actions[self.state.action]
-            for action_name in trigger_actions:
-                if action_name not in self.state.actions:
-                    print(f"TRIGGER: Action {action_name} does not exist")
-                    exit(1)
-
+    def register_hooks(self, config: dict, actions: dict[str, Action], state: State) -> None:
+        if "trigger" in config:
+            for action_name, action_config in config["trigger"].items():
+                if action_name not in actions:
+                    Logger.warn(f"[Recipe {self.name}] Action {action_name} does not exist. Cannot register triggers for it.")
+                    Logger.warn(f"[Recipe {self.name}] If you are trying to register this action consider labeling it trigger-action instead of trigger")
+                    continue
+                for trigger_action_name in action_config["actions"]:
+                    if trigger_action_name not in actions:
+                        Logger.warn(f"[Recipe {self.name}] Action {trigger_action_name} does not exist. Cannot register it to trigger for {action_name}.")
+                        continue
+                    actions[action_name].hooks.append(actions[trigger_action_name])
 
 def create(state: State) -> Recipe:
-    return Trigger(state)
+    return Trigger()
