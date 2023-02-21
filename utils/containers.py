@@ -43,14 +43,14 @@ class State():
     context: dict
     project: Project
     project_breadcrumbs: list[Project]
-    perm_recipes: list[str]
+    child_recipes: list[str]
 
     def __init__(self) -> None:
         self.args = []
         self.context = {}
         self.project_name = ""
         self.project_breadcrumbs = []
-        self.perm_recipes = []
+        self.child_recipes = []
     
     def set_args(self, args: list[str]) -> None:
         self.args = args[1:]

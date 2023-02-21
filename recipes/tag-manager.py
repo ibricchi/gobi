@@ -53,13 +53,9 @@ class TagManager(Recipe):
             if "-t" in state.args:
                 arg_idx = state.args.index("-t")
                 self.tag = state.args[arg_idx + 1]
-                state.args.pop(arg_idx)
-                state.args.pop(arg_idx)
             elif "--tag" in state.args:
                 arg_idx = state.args.index("--tag")
                 self.tag = state.args[arg_idx + 1]
-                state.args.pop(arg_idx)
-                state.args.pop(arg_idx)
             else:
                 self.tag = "default"
         

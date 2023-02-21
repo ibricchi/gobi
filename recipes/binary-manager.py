@@ -30,6 +30,25 @@ class BinaryCleanAction(Action):
         else:
             Logger.fatal(f"[Action {self.name}] Aborting deletion of {self.dir}")
 
+class BinaryUseAction(Action):
+    tag: str
+    dir: str
+
+    def __init__(self, tag: str, dir: str) -> None:
+        super().__init__()
+        self.tag = tag
+        self.dir = dir
+    
+    def run(self, state: State) -> None:
+        print(self.dir)
+        print(self.tag)
+        for name in os.listdir(self.dir):
+            if name.endswith(f"-{self.tag}"):
+                base_name = name[:-len(f"-{self.tag}")]
+                if os.path.exists(os.path.join(self.dir, base_name)):
+                    os.remove(os.path.join(self.dir, base_name))
+                os.symlink(os.path.join(self.dir, name), os.path.join(self.dir, base_name))
+
 class BinaryManagerAction(Action):
     tag: str
     dir: str
@@ -103,16 +122,20 @@ class BinaryManager(Recipe):
             Logger.fatal(f"[Recipe {self.name}] Recipe tag-manager is required for binary-manager")
         self.tag = state.context["tag-manager"]["tag"]
 
+        if "--binary-manager-tag" in state.args:
+            idx = state.args.index("--binary-manager-tag")
+            self.tag = state.args[idx + 1]
+
         if "--binary-manager-no-link" in state.args:
             self.link_main = False
-            state.args.pop(state.args.index("--binary-manager-no-link"))
 
         validate(instance=config, schema=binary_manager_schema)
 
     def register_actions(self, config: dict, state: State) -> list[tuple[str, Action]]:
         return [
-            ("bm-dir", BinaryDirectoryAction(os.path.join(self.base_binary_dir, self.tag))),
-            ("bm-clean", BinaryCleanAction(os.path.join(self.base_binary_dir, self.tag)))
+            ("bm-dir", BinaryDirectoryAction(os.path.join(self.base_binary_dir))),
+            ("bm-clean", BinaryCleanAction(os.path.join(self.base_binary_dir))),
+            ("bm-use", BinaryUseAction(self.tag, os.path.join(self.base_binary_dir))),
         ]
 
     def register_hooks(self, config: dict, actions: dict[str, Action], state: State) -> None:

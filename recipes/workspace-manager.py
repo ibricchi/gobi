@@ -13,7 +13,7 @@ class WorkspaceDirectoryAction(Action):
         super().__init__()
         self.dir = os.path.join(dir)
     
-    def run(self) -> None:
+    def run(self, state: State) -> None:
         print(self.dir)
 
 class WorkspaceCleanAction(Action):
@@ -48,6 +48,10 @@ class WorkspaceManager(Recipe):
         if "tag-manager" not in state.context:
             Logger.fatal(f"[Recipe {self.name}] Recipe tag-manager is required for workspace-manager")
         self.tag = state.context["tag-manager"]["tag"]
+
+        if "--workspace-manager-tag" in state.args:
+            idx = state.args.index("--workspace-manager-tag")
+            self.tag = state.args[idx + 1]
 
         if not os.path.isdir(os.path.join(self.base_workspace_dir, self.tag)):
             os.makedirs(os.path.join(self.base_workspace_dir, self.tag))

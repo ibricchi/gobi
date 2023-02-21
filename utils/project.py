@@ -41,7 +41,7 @@ project_schema = {
                         "type": "string",
                     },
                 },
-                "perm-recipes": {
+                "child-recipes": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -76,23 +76,23 @@ def load_project_recipes(project: Project, state: State) -> None:
                 project.actions[project_name] = ProjectAction(project_name, project_path)
                 project.actions[project_name].recipe = project.name
         
-        if "perm-recipes" in project.config["gobi"]:
-            for recipe_name in project.config["gobi"]["perm-recipes"]:
-                state.perm_recipes.append(recipe_name)
-        
-        for recipe_name in state.perm_recipes:
+        for recipe_name in state.child_recipes:
             recipe = load_recipe(recipe_name, state)
             recipe.name = recipe_name
             project.recipes.append(recipe)
 
         if "recipes" in project.config["gobi"]:
             for recipe_name in project.config["gobi"]["recipes"]:
-                if recipe_name in state.perm_recipes:
-                    Logger.warn(f"[Project '{project.name}'] Recipe '{recipe_name}' is already registered as a permanent recipe")
+                if recipe_name in state.child_recipes:
+                    Logger.warn(f"[Project '{project.name}'] Recipe '{recipe_name}' is already registered as a child recipe by a parent project")
                     continue
                 recipe = load_recipe(recipe_name, state)
                 recipe.name = recipe_name
                 project.recipes.append(recipe)
+
+        if "child-recipes" in project.config["gobi"]:
+            for recipe_name in project.config["gobi"]["child-recipes"]:
+                state.child_recipes.append(recipe_name)
 
 def run_project(name: str, path: str, state: State) -> None:
     if len(state.args) == 0:

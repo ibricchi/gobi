@@ -37,8 +37,8 @@ bash_schema = {
                     "type": "object",
                     "properties": {
                         "cwd": {"type": "string"},
-                        "var_expand_cwd": {"type": "boolean"},
-                        "usr_expand_cwd": {"type": "boolean"},
+                        "var-expand-cwd": {"type": "boolean"},
+                        "usr-expand-cwd": {"type": "boolean"},
                         "command": {"type": "string"},
                         "shell": {"type": "string"},
                         "var_expand_env_keys": {"type": "boolean"},
@@ -46,7 +46,7 @@ bash_schema = {
                             "type": "object",
                             "patternProperties": {".*": {"type": "string"}},
                         },
-                        "eval_env": {
+                        "eval-env": {
                             "type": "object",
                             "patternProperties": {".*": {"type": "string"}},
                         },
@@ -68,10 +68,10 @@ class Bash(Recipe):
         if "bash" in config:
             for name, config in config["bash"].items():
                 cwd = config["cwd"]
-                var_expand_cwd = config["var_expand_cwd"] if "var_expand_cwd" in config else True
+                var_expand_cwd = config["var-expand-cwd"] if "var-expand-cwd" in config else True
                 if var_expand_cwd:
                     cwd = os.path.expandvars(cwd)
-                usr_expand_cwd = config["usr_expand_cwd"] if "usr_expand_cwd" in config else True
+                usr_expand_cwd = config["usr-expand-cwd"] if "usr-expand-cwd" in config else True
                 if usr_expand_cwd:
                     cwd = os.path.expanduser(cwd)
                 command = config["command"]
@@ -87,8 +87,8 @@ class Bash(Recipe):
                         if var_expand_env_keys:
                             key = os.path.expandvars(key)
                         environment[key] = value
-                if "eval_env" in config:
-                    for key, value in config["eval_env"].items():
+                if "eval-env" in config:
+                    for key, value in config["eval-env"].items():
                         if var_expand_env_keys:
                             key = os.path.expandvars(key)
                         run_env = os.environ.copy() | environment
