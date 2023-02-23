@@ -12,16 +12,16 @@ from .logger import Logger
 from .recipe import load_recipe
 
 class ProjectAction(Action):
-    project_name: str
+    name: str
     project_path: str
 
-    def __init__(self, project_name: str, project_path: str) -> None:
+    def __init__(self, name: str, project_path: str) -> None:
         super().__init__()
-        self.project_name = project_name
+        self.name = name
         self.project_path = project_path
     
-    def run(self, state: State) -> None:
-        run_project(self.project_name, self.project_path, state)
+    def run(self, state: State) -> any:
+        return run_project(self.name, self.project_path, state)
 
 project_schema = {
     "type": "object",
@@ -47,6 +47,7 @@ project_schema = {
                         "type": "string",
                     },
                 },
+                "fail-and-continue": { "type": "boolean" }
             },
         },
     },
@@ -93,8 +94,12 @@ def load_project_recipes(project: Project, state: State) -> None:
         if "child-recipes" in project.config["gobi"]:
             for recipe_name in project.config["gobi"]["child-recipes"]:
                 state.child_recipes.append(recipe_name)
+        
+        if "fail-and-continue" in project.config["gobi"]:
+            project.fail_and_continue = project.config["fail-and-continue"]
 
-def run_project(name: str, path: str, state: State) -> None:
+
+def run_project(name: str, path: str, state: State) -> any:
     if len(state.args) == 0:
         Logger.warn(f"[Project '{name}'] No action specified")
         return
@@ -127,9 +132,23 @@ def run_project(name: str, path: str, state: State) -> None:
     
     actions_to_run = [project.actions[action_name]]
 
+    is_first_run = True
+    first_run_ret_msg = None
     while len(actions_to_run) > 0:
         action = actions_to_run.pop(0)
-        action.run(state)
+        ret_msg = action.run(state)
+        if is_first_run:
+            first_run_ret_msg = ret_msg;
+            is_first_run = False        
+        if ret_msg is not None:
+            if project.fail_and_continue:
+                Logger.warn(f"[Project {name}] Action {action.name} failed with message {ret_msg}")
+            else:
+                Logger.error(f"[Project {name}] Action {action.name} failed with message {ret_msg}")
+                Logger.error(f"[Project {name}] Will ignore remaining hooks")
+            
+        
         actions_to_run.extend(action.hooks)
 
     state.unset_project()
+    return first_run_ret_msg

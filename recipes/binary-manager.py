@@ -40,8 +40,6 @@ class BinaryUseAction(Action):
         self.dir = dir
     
     def run(self, state: State) -> None:
-        print(self.dir)
-        print(self.tag)
         for name in os.listdir(self.dir):
             if name.endswith(f"-{self.tag}"):
                 base_name = name[:-len(f"-{self.tag}")]

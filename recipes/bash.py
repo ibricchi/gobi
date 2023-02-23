@@ -21,11 +21,12 @@ class BashAction(Action):
         self.environment = environment
         self.shell = shell
 
-    def run(self, state: State) -> None:
+    def run(self, state: State) -> None | str:
         new_env = os.environ.copy() | self.environment
 
-        sp.run(self.command, cwd=self.cwd, shell=True, env=new_env, executable=self.shell)
+        cp = sp.run(self.command, cwd=self.cwd, shell=True, env=new_env, executable=self.shell)
 
+        return cp.returncode if cp.returncode != 0 else None
 
 bash_schema = {
     "type": "object",

@@ -75,7 +75,7 @@ class Action:
     def __init__(self) -> None:
         self.hooks = []
     
-    def run(self, state: State) -> None:
+    def run(self, state: State) -> any:
         raise NotImplementedError()
     
 class Recipe:
@@ -93,6 +93,7 @@ class Project:
     name: str
     config_path: str
     config: dict
+    fail_and_continue: bool
     projects = dict[str, str]
     recipes = list[Recipe]
     actions = dict[str, Action]
@@ -101,6 +102,7 @@ class Project:
         self.name = name
         self.config_path = config_path
         self.config = config
+        self.fail_and_continue = False
         self.projects = {}
         self.recipes = []
         self.actions = {}
