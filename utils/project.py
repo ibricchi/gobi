@@ -62,6 +62,11 @@ def load_project_config(name: str, config_path: str, state: State) -> Project:
     return Project(name, config_path, config)
 
 def load_project_recipes(project: Project, state: State) -> None:
+    for recipe_name in state.child_recipes:
+        recipe = load_recipe(recipe_name, state)
+        recipe.name = recipe_name
+        project.recipes.append(recipe)
+
     if "gobi" in project.config:
         if "projects" in project.config["gobi"]:
             project.projects = project.config["gobi"]["projects"]
@@ -76,11 +81,6 @@ def load_project_recipes(project: Project, state: State) -> None:
                 project.actions[project_name] = ProjectAction(project_name, project_path)
                 project.actions[project_name].recipe = project.name
         
-        for recipe_name in state.child_recipes:
-            recipe = load_recipe(recipe_name, state)
-            recipe.name = recipe_name
-            project.recipes.append(recipe)
-
         if "recipes" in project.config["gobi"]:
             for recipe_name in project.config["gobi"]["recipes"]:
                 if recipe_name in state.child_recipes:
