@@ -94,9 +94,9 @@ class Project:
     config_path: str
     config: dict
     fail_and_continue: bool
-    projects = dict[str, str]
-    recipes = list[Recipe]
-    actions = dict[str, Action]
+    projects: dict[str, str]
+    recipes: list[Recipe]
+    actions: dict[str, Action]
 
     def __init__(self, name: str, config_path: str, config: dict) -> None:
         self.name = name
