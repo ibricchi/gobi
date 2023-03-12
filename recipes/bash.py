@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
 from jsonschema import validate
+from string import Template
 
 from utils.containers import State, Recipe, Action
 from utils.logger import Logger
@@ -96,14 +97,6 @@ class Bash(Recipe):
 
         if "bash" in config:
             if "gobi" in config["bash"]:
-                if "cwd" in config["bash"]["gobi"]:
-                    default_cwd = config["bash"]["gobi"]["cwd"]
-                if "var-expand-cwd" in config["bash"]["gobi"]:
-                    default_var_expand_cwd = config["bash"]["gobi"]["var-expand-cwd"]
-                if "usr-expand-cwd" in config["bash"]["gobi"]:
-                    default_usr_expand_cwd = config["bash"]["gobi"]["usr-expand-cwd"]
-                if "shell" in config["bash"]["gobi"]:
-                    default_shell = config["bash"]["gobi"]["shell"]
                 if "var_expand_env_keys" in config["bash"]["gobi"]:
                     default_var_expand_env_keys = config["bash"]["gobi"][
                         "var_expand_env_keys"
@@ -125,19 +118,16 @@ class Bash(Recipe):
                             text=True,
                             env=run_env,
                         ).stdout.strip()
+                if "cwd" in config["bash"]["gobi"]:
+                    default_cwd = config["bash"]["gobi"]["cwd"]
+                if "var-expand-cwd" in config["bash"]["gobi"]:
+                    default_var_expand_cwd = config["bash"]["gobi"]["var-expand-cwd"]
+                if "usr-expand-cwd" in config["bash"]["gobi"]:
+                    default_usr_expand_cwd = config["bash"]["gobi"]["usr-expand-cwd"]
+                if "shell" in config["bash"]["gobi"]:
+                    default_shell = config["bash"]["gobi"]["shell"]
 
             for name, config in config["bash"].items():
-                if name == "gobi":
-                    continue
-                cwd = config["cwd"] if "cwd" in config else default_cwd
-                var_expand_cwd = config["var-expand-cwd"] if "var-expand-cwd" in config else default_var_expand_cwd
-                if var_expand_cwd:
-                    cwd = os.path.expandvars(cwd)
-                usr_expand_cwd = config["usr-expand-cwd"] if "usr-expand-cwd" in config else default_usr_expand_cwd
-                if usr_expand_cwd:
-                    cwd = os.path.expanduser(cwd)
-                command = config["command"]
-                shell = config["shell"] if "shell" in config else default_shell
                 var_expand_env_keys = (
                     config["var_expand_env_keys"]
                     if "var_expand_env_keys" in config
@@ -161,6 +151,18 @@ class Bash(Recipe):
                             text=True,
                             env=run_env,
                         ).stdout.strip()
+                if name == "gobi":
+                    continue
+                cwd = config["cwd"] if "cwd" in config else default_cwd
+                var_expand_cwd = config["var-expand-cwd"] if "var-expand-cwd" in config else default_var_expand_cwd
+                if var_expand_cwd:
+                    # cwd = Template(cwd).substitute(environment)
+                    cwd = os.path.expandvars(cwd)
+                usr_expand_cwd = config["usr-expand-cwd"] if "usr-expand-cwd" in config else default_usr_expand_cwd
+                if usr_expand_cwd:
+                    cwd = os.path.expanduser(cwd)
+                command = config["command"]
+                shell = config["shell"] if "shell" in config else default_shell
                 action = BashAction(cwd, command, environment, shell)
                 yield (name, action)
 

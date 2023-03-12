@@ -18,6 +18,7 @@ class TriggerAction(Action):
                 Logger.warn(f"[Action {self.name}] Attempting to tigger action {action} which does not exist")
                 continue
             state.project.actions[action].run(state)
+            self.hooks.extend(state.project.actions[action].hooks)
 
 trigger_schema = {
     "type": "object",
