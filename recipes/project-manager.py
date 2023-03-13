@@ -20,6 +20,12 @@ class RegisterAction(Action):
         name = state.args[0]
         path = os.path.realpath(state.args[1])
         
+        if "gobi" not in self.project_config:
+            self.project_config["gobi"] = {}
+        
+        if "projects" not in self.project_config["gobi"]:
+            self.project_config["gobi"]["projects"] = {}
+
         # check if the project already exists
         if name in self.project_config["gobi"]["projects"]:
             Logger.warn(f"[Action {self.name}] Project {name} already exists with path {self.project_config['gobi']['projects'][name]}")
@@ -82,6 +88,12 @@ class RemoveAction(Action):
         
         name = state.args[0]
         
+        if "gobi" not in self.project_config:
+            self.project_config["gobi"] = {}
+        
+        if "projects" not in self.project_config["gobi"]:
+            self.project_config["gobi"]["projects"] = {}
+
         # check if the project exists
         if name not in self.project_config["gobi"]["projects"]:
             Logger.warn(f"[Action {self.name}] Project {name} does not exist")

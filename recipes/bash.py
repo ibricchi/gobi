@@ -137,11 +137,13 @@ class Bash(Recipe):
                 if "env" in config:
                     for key, value in config["env"].items():
                         if var_expand_env_keys:
+                            key = Template(key).safe_substitute(environment)
                             key = os.path.expandvars(key)
                         environment[key] = value
                 if "eval-env" in config:
                     for key, value in config["eval-env"].items():
                         if var_expand_env_keys:
+                            key = Template(key).safe_substitute(environment)
                             key = os.path.expandvars(key)
                         run_env = os.environ.copy() | environment
                         environment[key] = sp.run(
@@ -156,7 +158,7 @@ class Bash(Recipe):
                 cwd = config["cwd"] if "cwd" in config else default_cwd
                 var_expand_cwd = config["var-expand-cwd"] if "var-expand-cwd" in config else default_var_expand_cwd
                 if var_expand_cwd:
-                    # cwd = Template(cwd).substitute(environment)
+                    cwd = Template(cwd).substitute(environment)
                     cwd = os.path.expandvars(cwd)
                 usr_expand_cwd = config["usr-expand-cwd"] if "usr-expand-cwd" in config else default_usr_expand_cwd
                 if usr_expand_cwd:
