@@ -1,18 +1,30 @@
-#!/usr/bin/env python3.10
+#!/usr/bin/env python3
 
 from __future__ import annotations
 import sys
+import os
 
-from utils.containers import State, Environment
-from utils.project import run_project
+base_dir = os.path.dirname(os.path.realpath(__file__))
+
+# add libs to filepath
+libs_dir = os.path.join(base_dir, "libs")
+sys.path.append(os.path.join(libs_dir, "tomli", "src"))
+sys.path.append(os.path.join(libs_dir, "tomlkit"))
+
+from recipes.gobi import GobiAction
 
 if __name__ == "__main__":
-    state = State()
+    # add recipes to filepath
+    sys.path.append(os.path.join(base_dir, "recipes"))
+    if os.environ.get("GOBI_CUSTOM_RECIPES") is not None:
+        sys.path.append(os.environ.get("GOBI_CUSTOM_RECIPES"))
 
-    state.set_env(Environment.default())
-    state.set_args(sys.argv)
+    main_gobi_file = os.environ.get("GOBI_FILE", os.path.join(base_dir, "gobi.toml"))
 
-    sys.path.append(state.env.recipe_folder)
+    gobi_action = GobiAction("", main_gobi_file)
+    result = gobi_action.run(None, None, None, sys.argv[1:])
 
-    # load base project
-    run_project("gobi", state.env.config_project_path, state)
+    if result is not None:
+        print(f"\033[31m[{result.source.name}]:")
+        print(f"\033[31m{result.msg}")
+        exit(result.code)

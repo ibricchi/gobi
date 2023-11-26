@@ -1,135 +1,214 @@
+from __future__ import annotations
+
 import os
-import subprocess as sp
-from jsonschema import validate
-import tomli_w
+from tomlkit import dumps, parse
 
-from utils.containers import State, Recipe, Action
-from utils.logger import Logger
+from utils.loader import GobiFile
+from utils.recipes import GobiError, Action, Recipe
 
 
-class RegisterAction(Action):
-    project_config: dict
-    def __init__(self, project_config: dict) -> None:
-        super().__init__()
-        self.project_config = project_config
+class ProjectManagerWhereAction(Action):
+    def __init__(self) -> None:
+        self.name = "project-manager.where"
+        self.subname = "where"
 
-    def run(self, state: State) -> None:
-        if len(state.args) < 2:
-            Logger.fatal(f"[Action {self.name}] Registering a new project requires a name and a path")
-        
-        name = state.args[0]
-        path = os.path.realpath(state.args[1])
-        
-        if "gobi" not in self.project_config:
-            self.project_config["gobi"] = {}
-        
-        if "projects" not in self.project_config["gobi"]:
-            self.project_config["gobi"]["projects"] = {}
+    def run(
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
+    ) -> GobiError | None:
+        if len(args) == 0:
+            return GobiError(self, 1, "No project name specified")
+        project_data = gobi_file.data.get("gobi", {}).get("projects", {})
+        if args[0] not in project_data:
+            return GobiError(self, 1, f"Project {args[0]} not found")
+        print(project_data[args[0]])
 
-        # check if the project already exists
-        if name in self.project_config["gobi"]["projects"]:
-            Logger.warn(f"[Action {self.name}] Project {name} already exists with path {self.project_config['gobi']['projects'][name]}")
-            Logger.warn(f"[Action {self.name}] Will not register project {name} with path {path}")
-            Logger.warn(f"[Action {self.name}] To update the path, use the 'update' action")
+
+class PorjectManagerAddAction(Action):
+    def __init__(self) -> None:
+        self.name = "project-manager.add"
+        self.subname = "add"
+
+    def run(
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
+    ) -> GobiError | None:
+        match len(args):
+            case 0:
+                return GobiError(self, 1, "No project name or gobi file path specified")
+            case 1:
+                return GobiError(self, 1, "No gobi file path specified")
+            case _:
+                pass
+
+        project_name = args[0]
+        gobi_file_path = args[1]
+
+        # reload gobi file using tomlkit
+        gobi_file_data = parse(open(gobi_file.path).read())
+
+        # check if gobi file has gobi.projects
+        if "gobi" not in gobi_file_data:
+            gobi_file_data["gobi"] = {}
+        if "projects" not in gobi_file_data["gobi"]:
+            gobi_file_data["gobi"]["projects"] = {}
+
+        # check if project already exists
+        if project_name in gobi_file_data["gobi"]["projects"]:
+            return GobiError(self, 1, f"Project {project_name} already exists")
+
+        # add project to gobi file
+        gobi_file_data["gobi"]["projects"][project_name] = gobi_file_path
+
+        # write gobi file
+        with open(gobi_file.path, "w") as f:
+            f.write(dumps(gobi_file_data))
+
+        # reload gobi file data
+        new_gobi_file = GobiFile(gobi_file.path)
+        gobi_file.data = new_gobi_file.data
+
+
+class PorjectManagerRemoveAction(Action):
+    def __init__(self) -> None:
+        self.name = "project-manager.remove"
+        self.subname = "remove"
+
+    def run(
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
+    ) -> GobiError | None:
+        if len(args) == 0:
+            return GobiError(self, 1, "No project name specified")
+
+        project_name = args[0]
+
+        # check if gobi file has gobi.projects
+        if (
+            "gobi" not in gobi_file.data
+            or "projects" not in gobi_file.data["gobi"]
+            or project_name not in gobi_file.data["gobi"]["projects"]
+        ):
+            return GobiError(self, 1, f"Project {project_name} does not exist")
+
+        # reload gobi file using tomlkit
+        gobi_file_data = parse(open(gobi_file.path).read())
+        gobi_file_data["gobi"]["projects"].pop(project_name)
+
+        # write gobi file
+        with open(gobi_file.path, "w") as f:
+            f.write(dumps(gobi_file_data))
+
+        # reload gobi file data
+        new_gobi_file = GobiFile(gobi_file.path)
+        gobi_file.data = new_gobi_file.data
+
+
+class PorjectManagerPruneAction(Action):
+    def __init__(self) -> None:
+        self.name = "project-manager.prune"
+        self.subname = "prune"
+
+    def run(
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
+    ) -> GobiError | None:
+        # check if gobi file has gobi.projects
+        if (
+            "gobi" not in gobi_file.data
+            or "projects" not in gobi_file.data["gobi"]
+        ):
+            print("All clean!")
             return
+
+        # loop through projects and gather non existent paths
+        projects_to_remove = []
+        for project_name, project_path in gobi_file.data["gobi"]["projects"].items():
+            if not os.path.exists(project_path):
+                projects_to_remove.append(project_name)
         
-        # check if the path exists
-        if not os.path.exists(path):
-            Logger.warn(f"[Action {self.name}] Path {path} does not exist")
-            Logger.warn(f"[Action {self.name}] Will not register project {name} with path {path}")
+        if len(projects_to_remove) == 0:
+            print("All clean!")
             return
-        
-        self.project_config["gobi"]["projects"][name] = path
 
-        # write the config
-        with open(state.project.config_path, "wb") as f:
-            tomli_w.dump(self.project_config, f)
+        can_pop = False
+        if len(args) > 0 and args[0] == "-y":
+            can_pop = True
+        else:
+            print("The following projects will be removed:")
+            for project in projects_to_remove:
+                print(f"  {project}")
+            print("Are you sure you want to continue? (y/n)")
+            answer = input()
+            if answer == "y":
+                can_pop = True
+        
+        if not can_pop:
+            return GobiError(self, 1, "Aborting prune")
 
-class UpdateAction(Action):
-    project_config: dict
-    def __init__(self, project_config: dict) -> None:
-        super().__init__()
-        self.project_config = project_config
-    
-    def run(self, state: State) -> None:
-        if len(state.args) < 2:
-            Logger.fatal(f"[Action {self.name}] Updating a project requires a name and a path")
-        
-        name = state.args[0]
-        path = os.path.realpath(state.args[1])
-        
-        # check if the project exists
-        if name not in self.project_config["gobi"]["projects"]:
-            Logger.warn(f"[Action {self.name}] Project {name} does not exist")
-            Logger.warn(f"[Action {self.name}] Will not update project {name} with path {path}")
-            return
-        
-        # check if the path exists
-        if not os.path.exists(path):
-            Logger.warn(f"[Action {self.name}] Path {path} does not exist")
-            Logger.warn(f"[Action {self.name}] Will not update project {name} with path {path}")
-            return
-        
-        self.project_config["gobi"]["projects"][name] = path
+        # reload gobi file using tomlkit
+        gobi_file_data = parse(open(gobi_file.path).read())
 
-        # write the config
-        with open(state.project.config_path, "wb") as f:
-            tomli_w.dump(self.project_config, f)
+        # pop projects
+        for project in projects_to_remove:
+            gobi_file_data["gobi"]["projects"].pop(project)          
 
-class RemoveAction(Action):
-    project_config: dict
-    def __init__(self, project_config: dict) -> None:
-        super().__init__()
-        self.project_config = project_config
-    
-    def run(self, state: State) -> None:
-        if len(state.args) < 1:
-            Logger.fatal(f"[Action {self.name}] Removing a project requires a name")
-        
-        name = state.args[0]
-        
-        if "gobi" not in self.project_config:
-            self.project_config["gobi"] = {}
-        
-        if "projects" not in self.project_config["gobi"]:
-            self.project_config["gobi"]["projects"] = {}
+        # write gobi file
+        with open(gobi_file.path, "w") as f:
+            f.write(dumps(gobi_file_data))
 
-        # check if the project exists
-        if name not in self.project_config["gobi"]["projects"]:
-            Logger.warn(f"[Action {self.name}] Project {name} does not exist")
-            Logger.warn(f"[Action {self.name}] Will not remove project {name}")
-            return
-        
-        del self.project_config["gobi"]["projects"][name]
+        # reload gobi file data
+        new_gobi_file = GobiFile(gobi_file.path)
+        gobi_file.data = new_gobi_file.data
 
-        # write the config
-        with open(state.project.config_path, "wb") as f:
-            tomli_w.dump(self.project_config, f)
+        print("All clean!")
 
-class WhereAction(Action):
-    def run(self, state: State) -> None:
-        if len(state.args) < 1:
-            Logger.fatal(f"[Action {self.name}] Finding a project requires a name")
-        
-        name = state.args[0]
-        
-        # check if the project exists
-        if name not in state.project.config["gobi"]["projects"]:
-            Logger.warn(f"[Action {self.name}] Project {name} does not exist")
-            Logger.warn(f"[Action {self.name}] Will not find project {name}")
-            return
-        
-        print(state.project.config['gobi']['projects'][name])
 
-class ProjectManagerRecipe(Recipe):    
-    def register_actions(self, config: dict, state: State) -> list[tuple[str, Action]]:
+
+class ProjectManagerWhereAction(Action):
+    def __init__(self) -> None:
+        self.name = "project-manager.where"
+        self.subname = "where"
+
+    def run(
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
+    ) -> GobiError | None:
+        if len(args) == 0:
+            return GobiError(self, 1, "No project name specified")
+        project_data = gobi_file.data.get("gobi", {}).get("projects", {})
+        if args[0] not in project_data:
+            return GobiError(self, 1, f"Project {args[0]} not found")
+        print(project_data[args[0]])
+
+
+class ProjectManagerRecipe(Recipe):
+    def __init__(self):
+        self.name = "project-manager"
+
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         return [
-            ("register", RegisterAction(config)),
-            ("update", UpdateAction(config)),
-            ("remove", RemoveAction(config)),
-            ("where", WhereAction())
+            ProjectManagerWhereAction(),
+            PorjectManagerAddAction(),
+            PorjectManagerRemoveAction(),
+            PorjectManagerPruneAction(),
         ]
 
 
-def create(state: State) -> Recipe:
+def create() -> Recipe:
     return ProjectManagerRecipe()
