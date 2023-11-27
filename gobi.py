@@ -19,7 +19,7 @@ if __name__ == "__main__":
     if os.environ.get("GOBI_CUSTOM_RECIPES") is not None:
         sys.path.append(os.environ.get("GOBI_CUSTOM_RECIPES"))
 
-    main_gobi_file = os.environ.get("GOBI_FILE", os.path.join(base_dir, "gobi.toml"))
+    main_gobi_file = os.environ.get("GOBI_CORE_FILE", os.path.join(base_dir, "gobi.toml"))
 
     gobi_action = GobiAction("", main_gobi_file)
     result = gobi_action.run(None, None, None, sys.argv[1:])

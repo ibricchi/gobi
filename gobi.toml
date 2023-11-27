@@ -1,0 +1,16 @@
+[gobi]
+recipes = [
+    "list",
+    "help",
+    "shell",
+    "project-manager",
+]
+child-recipes = [
+    "list",
+    "help",
+]
+
+[shell.hello]
+command="""
+    echo "hello world!"
+"""
