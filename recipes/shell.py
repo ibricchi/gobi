@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess as sp
 import tempfile as tf
+from string import Template
 
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe
@@ -52,6 +53,8 @@ class ShellAction(Action):
         # add environ variables
         env = os.environ.copy()
 
+        eval_env_cwd = os.path.dirname(gobi_file.path)
+
         # add eval env
         for key, value in self.config.eval_env.items():
             command_file = tf.NamedTemporaryFile(
@@ -62,6 +65,7 @@ class ShellAction(Action):
                 command_file.flush()
                 res = sp.run(
                     command_base + [command_file.name],
+                    cwd = eval_env_cwd,
                     capture_output=True,
                     text=True,
                     env=env,
@@ -75,11 +79,13 @@ class ShellAction(Action):
                 env[key] = res.stdout.strip()
 
         # add normal env
-        env |= self.config.env
+        for key, value in self.config.env.items():
+            env[key] = Template(value).safe_substitute(env)
 
-        # add args
-        for i, arg in enumerate(args):
-            env[f"ARG{i}"] = arg
+        # make sure cwd dir exist
+        cwd = Template(self.config.cwd).safe_substitute(env)
+        if not os.path.isdir(cwd):
+            return GobiError(self, 1, f"cwd '{cwd}' does not exist")
 
         # run command
         with tf.NamedTemporaryFile(mode="w") as command_file:
@@ -88,7 +94,7 @@ class ShellAction(Action):
             res = sp.run(
                 command_base + [command_file.name] + args,
                 env=env,
-                cwd=self.config.cwd,
+                cwd=cwd,
             )
 
         if res.returncode != 0:

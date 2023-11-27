@@ -73,7 +73,7 @@ class SequenceRecipe(Recipe):
         self.name = "sequence"
 
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
-        data = gobi_file.data.get("sequence", None)
+        data = gobi_file.data.get("sequence", {})
 
         actions = []
         for action, action_data in data.items():
