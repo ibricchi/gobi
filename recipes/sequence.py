@@ -18,6 +18,9 @@ class SequenceAction(Action):
         self.subname = name
         self.config = config
 
+    def help(self) -> str:
+        return f"Runs [{', '.join(self.config.subactions)}] in that order" + " exiting on first failure" if self.config.allow_fail else ""
+
     def run(
         self,
         gobi_file: GobiFile,
@@ -71,6 +74,19 @@ class SequenceAction(Action):
 class SequenceRecipe(Recipe):
     def __init__(self):
         self.name = "sequence"
+
+    def help(self) -> str:
+        return """
+Generates sequence actions.
+
+This recipe uses the following configuration options:
+
+[sequence.<action name>.subactions] (required) : list[str]
+    list of actions to run in order
+
+[sequence.<action name>.allow_fail] (optional) : bool
+    if true, continue running actions even if one fails
+"""
 
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         data = gobi_file.data.get("sequence", {})

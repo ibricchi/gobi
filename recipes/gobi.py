@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from utils.loader import GobiFile 
+from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe, load_recipe
 
 
@@ -12,6 +12,14 @@ class GobiAction(Action):
             self.name = f"gobi.{subname}"
         self.subname = subname
         self.path = path
+
+    def help(self) -> str:
+        gobi_file: GobiFile = GobiFile(self.path)
+        if gobi_file.error:
+            return f"Tried to load help menu from {self.path}, but got error: {gobi_file.error}"
+        return gobi_file.data.get("gobi", {}).get(
+            "help", f"Project {self.subname} has no help menu"
+        )
 
     def run(
         self,
@@ -29,6 +37,7 @@ class GobiAction(Action):
         gobi_actions = gobi_recipe.create_actions(gobi_file)
         if isinstance(gobi_actions, GobiError):
             return gobi_actions
+        gobi_recipe.current_recipes["gobi"] = gobi_recipe
 
         if len(args) == 0:
             return GobiError(self, 1, "No action specified")
@@ -38,22 +47,30 @@ class GobiAction(Action):
         match possible_actions:
             case []:
                 # try finding actions with matching name
-                possible_actions = list(filter(lambda a: a.name == args[0], gobi_actions))
+                possible_actions = list(
+                    filter(lambda a: a.name == args[0], gobi_actions)
+                )
                 if len(possible_actions) == 0:
                     return GobiError(self, 1, f"Unknown action: {args[0]}")
                 if len(possible_actions) == 1:
                     return possible_actions[0].run(
                         gobi_file, gobi_recipe.current_recipes, gobi_actions, args[1:]
                     )
-                return GobiError(self, 1, f"INTERNAL ERROR: Multiple actions with name {args[0]}")
+                return GobiError(
+                    self, 1, f"INTERNAL ERROR: Multiple actions with name {args[0]}"
+                )
             case [action]:
                 return action.run(
                     gobi_file, gobi_recipe.current_recipes, gobi_actions, args[1:]
                 )
             case _:
-                return GobiError(self, 1, "Too many actions with subname {}, use full name from:\n  {}".format(
-                    args[0], "\n  ".join(map(lambda a: a.name, possible_actions))
-                ))
+                return GobiError(
+                    self,
+                    1,
+                    "Too many actions with subname {}, use full name from:\n  {}".format(
+                        args[0], "\n  ".join(map(lambda a: a.name, possible_actions))
+                    ),
+                )
 
 
 class GobiRecipe(Recipe):
@@ -63,6 +80,25 @@ class GobiRecipe(Recipe):
 
     def __init__(self) -> None:
         self.name = "gobi"
+    
+    def help(self) -> str:
+        return """
+This recipe is automatically loaded by gobi, and is used to load and process gobi files. It is responsible for loading and calling all other recipes, and for triggering actions.
+
+This recipe uses the following configuration options:
+
+[gobi.recipes] : list[str]
+    list of child recipes to load
+
+[gobi.child-recipes] : list[str]
+    list of child recipes to load, that are not loaded by default
+
+[gobi.help] : str
+    help menu entry for the action created for a file
+
+[gobi.projects] : dict[str, str]:
+    dictionary of project names to paths, used to create actions for gobi files
+"""
 
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         config = gobi_file.data.get("gobi", {})
@@ -85,7 +121,11 @@ class GobiRecipe(Recipe):
             if recipe_name not in GobiRecipe.loaded_recipes:
                 new_recipe = load_recipe(recipe_name)
                 if new_recipe is None:
-                    return GobiError(self, 1, f"Could not find {recipe_name}.py, if using a custom recipe, make sure to add it to GOBI_RECIPE_PATH")
+                    return GobiError(
+                        self,
+                        1,
+                        f"Could not find {recipe_name}.py, if using a custom recipe, make sure to add it to GOBI_RECIPE_PATH",
+                    )
                 GobiRecipe.loaded_recipes[recipe_name] = new_recipe
 
             recipes[recipe_name] = GobiRecipe.loaded_recipes[recipe_name]

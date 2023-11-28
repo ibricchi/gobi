@@ -12,6 +12,13 @@ class ProjectManagerWhereAction(Action):
         self.name = "project-manager.where"
         self.subname = "where"
 
+    def help(self) -> str:
+        return """
+Get the path of a projects gobi file
+
+Usage: gobi <project list...>? where <project name>
+"""
+
     def run(
         self,
         gobi_file: GobiFile,
@@ -31,6 +38,17 @@ class ProjectManagerRegisterAction(Action):
     def __init__(self) -> None:
         self.name = "project-manager.register"
         self.subname = "register"
+
+    def help(self) -> str:
+        return """
+Register a project to a gobi file
+
+Usage: gobi <project list...>? register <project name> <gobi file path>
+
+project name: name of the action that will load the project
+
+gobi file path: path to the gobi file for the project
+"""
 
     def run(
         self,
@@ -66,7 +84,7 @@ class ProjectManagerRegisterAction(Action):
         # check that path exists
         if not os.path.exists(gobi_file_path):
             return GobiError(self, 1, f"Gobi file {gobi_file_path} does not exist")
-        
+
         # expand path to absolute path
         gobi_file_path = os.path.abspath(gobi_file_path)
 
@@ -86,6 +104,15 @@ class ProjectManagerDeregisterAction(Action):
     def __init__(self) -> None:
         self.name = "project-manager.deregister"
         self.subname = "deregister"
+
+    def help(self) -> str:
+        return """
+Deregister a project from a gobi file
+
+Usage: gobi <project list...>? deregister <project name>
+
+project name: name of the action that will load the project
+"""
 
     def run(
         self,
@@ -120,10 +147,19 @@ class ProjectManagerDeregisterAction(Action):
         gobi_file.data = new_gobi_file.data
 
 
-class PorjectManagerPruneAction(Action):
+class ProjectManagerPruneAction(Action):
     def __init__(self) -> None:
         self.name = "project-manager.prune"
         self.subname = "prune"
+
+    def help(self) -> str:
+        return """
+Prune projects from the current gobi file that no longer exist
+
+Usage: gobi <project list...>? prune [-y]
+
+-y: skip confirmation prompt
+"""
 
     def run(
         self,
@@ -133,10 +169,7 @@ class PorjectManagerPruneAction(Action):
         args: list[str],
     ) -> GobiError | None:
         # check if gobi file has gobi.projects
-        if (
-            "gobi" not in gobi_file.data
-            or "projects" not in gobi_file.data["gobi"]
-        ):
+        if "gobi" not in gobi_file.data or "projects" not in gobi_file.data["gobi"]:
             print("All clean!")
             return
 
@@ -145,7 +178,7 @@ class PorjectManagerPruneAction(Action):
         for project_name, project_path in gobi_file.data["gobi"]["projects"].items():
             if not os.path.exists(project_path):
                 projects_to_remove.append(project_name)
-        
+
         if len(projects_to_remove) == 0:
             print("All clean!")
             return
@@ -161,7 +194,7 @@ class PorjectManagerPruneAction(Action):
             answer = input()
             if answer == "y":
                 can_pop = True
-        
+
         if not can_pop:
             return GobiError(self, 1, "Aborting prune")
 
@@ -170,7 +203,7 @@ class PorjectManagerPruneAction(Action):
 
         # pop projects
         for project in projects_to_remove:
-            gobi_file_data["gobi"]["projects"].pop(project)          
+            gobi_file_data["gobi"]["projects"].pop(project)
 
         # write gobi file
         with open(gobi_file.path, "w") as f:
@@ -183,27 +216,6 @@ class PorjectManagerPruneAction(Action):
         print("All clean!")
 
 
-
-class ProjectManagerWhereAction(Action):
-    def __init__(self) -> None:
-        self.name = "project-manager.where"
-        self.subname = "where"
-
-    def run(
-        self,
-        gobi_file: GobiFile,
-        recipes: dict[str, Recipe],
-        actions: list[Action],
-        args: list[str],
-    ) -> GobiError | None:
-        if len(args) == 0:
-            return GobiError(self, 1, "No project name specified")
-        project_data = gobi_file.data.get("gobi", {}).get("projects", {})
-        if args[0] not in project_data:
-            return GobiError(self, 1, f"Project {args[0]} not found")
-        print(project_data[args[0]])
-
-
 class ProjectManagerRecipe(Recipe):
     def __init__(self):
         self.name = "project-manager"
@@ -213,7 +225,7 @@ class ProjectManagerRecipe(Recipe):
             ProjectManagerWhereAction(),
             ProjectManagerRegisterAction(),
             ProjectManagerDeregisterAction(),
-            PorjectManagerPruneAction(),
+            ProjectManagerPruneAction(),
         ]
 
 

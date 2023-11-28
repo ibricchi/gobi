@@ -9,6 +9,16 @@ class ListAction(Action):
         self.name = "list"
         self.subname = "list"
 
+    def help(self) -> str:
+        return """
+Get a list of all available actions for a project
+Usage: gobi <project list...>? list [porcelain|full]
+
+By default will try and display the subname of available actions unless a conflict exists, then will use the full name.
+Porcelain will not print out the message at the start of the list command.
+Full will print out the full name of all actions.
+"""
+
     @staticmethod
     def print_list(actions: list[Action], full: bool = False) -> None:
         if full:
@@ -53,6 +63,9 @@ class ListAction(Action):
 class ListRecipe(Recipe):
     def __init__(self):
         self.name = "list"
+
+    def help(self) -> str:
+        return "Generates the list action for gobi."
 
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         return [ListAction()]

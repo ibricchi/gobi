@@ -16,6 +16,7 @@ class ShellConfig:
     env: dict[str, str]
     eval_env: dict[str, str]
     cwd: str
+    help: str
 
     def copy(self) -> ShellConfig:
         new = ShellConfig()
@@ -24,12 +25,16 @@ class ShellConfig:
         new.env = self.env.copy()
         new.eval_env = self.eval_env.copy()
         new.cwd = self.cwd
+        new.help = self.help
         return new
 
 
 class ShellAction(Action):
     config: ShellConfig
     command: str
+
+    def help(self) -> str:
+        return self.config.help
 
     def __init__(self, name, subname, config, command) -> None:
         self.name = name
@@ -105,6 +110,38 @@ class ShellRecipe(Recipe):
     def __init__(self):
         self.name = "shell"
 
+    def help(self) -> str:
+        return """
+Generate shell actions:
+
+Shell actions run a shell command by creating a temporary with the "command" parameter, and running '[shell] [params] [command file] [args]'. Where shell, params, and command are specified per action, and args, are any arguments passed through the command line.
+
+This recipe uses the following configuration options:
+
+[shell.<action name>.command] (required) : str
+    command to run
+
+[shell.<action name>.shell] (optional) : str
+    shell to use, defaults to /bin/sh
+
+[shell.<action name>.params] (optional) : list[str]
+    list of params to pass to shell, defaults to []
+
+[shell.<action name>.env] (optional) : dict[str, str]
+    dict of env variables to set, defaults to {}, values are processed as if they are string.Template objects
+
+[shell.<action name>.eval-env] (optional) : dict[str, str]
+    dict of env variables to set, defaults to {}, values are run as shell commands from the directory of the gobi file. These are set before the normal env variables.
+
+[shell.<action name>.cwd] (optional) : str
+    directory to run the command in, defaults to the current working directory
+
+[shell.<action name>.help] (optional) : str
+    help menu entry for the action created for a file
+
+The action name "gobi" is reserved to override default shell config for all actions in the project. "command" cannot provide defaults.
+"""
+
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         data = gobi_file.data.get("shell", {})
 
@@ -116,6 +153,7 @@ class ShellRecipe(Recipe):
         global_config.env = global_data.get("env", {})
         global_config.eval_env = global_data.get("eval-env", {})
         global_config.cwd = global_data.get("cwd", os.getcwd())
+        global_config.help = global_data.get("help", "No help provided")
 
         actions = []
 
@@ -129,19 +167,9 @@ class ShellRecipe(Recipe):
             config.env = config.env | action_data.get("env", {})
             config.eval_env = config.eval_env | action_data.get("eval-env", {})
             config.cwd = action_data.get("cwd", config.cwd)
+            config.help = action_data.get("help", config.help)
             command = action_data.get("command")
             actions.append(ShellAction("shell." + action, action, config, command))
-
-        # we also have a special bash version for convenience
-        for action, action_data in gobi_file.data.get("bash", {}).items():
-            config = global_config.copy()
-            config.shell = "/bin/bash"
-            config.params = action_data.get("params", config.params)
-            config.env = config.env | action_data.get("env", {})
-            config.eval_env = config.eval_env | action_data.get("eval-env", {})
-            config.cwd = action_data.get("cwd", config.cwd)
-            command = action_data.get("command")
-            actions.append(ShellAction("bash." + action, action, config, command))
 
         return actions
 

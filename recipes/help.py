@@ -14,12 +14,21 @@ class HelpAction(Action):
         self.name = "help"
         self.subname = "help"
 
-    def help(self) -> None:
-        print("Usage: gobi help [recipe|action] [args...]")
-        print("       gobi help recipe for help on all loaded recipes")
-        print("       gobi help recipe [recipe...] for help on a specific recipe/s")
-        print("       gobi help action for help on all loaded actions")
-        print("       gobi help action [action...] for help on a specific action/s")
+    def help(self) -> str:
+        return "How clever of you to find this help menu!"
+
+    def help_menu(self) -> None:
+        print("""
+Usage: gobi <project list...>? help [recipe|action] <recipe name|action name...>?
+
+default: prints this help menu
+
+recipe: prints the help menu for all recipes loaded in the current project
+        <recipe name...>: prints the help menu for the specified recipes
+
+action: prints the help menu for all actions loaded in the current project
+        <action name...>: prints the help menu for the specified actions
+""")
 
     def run(
         self,
@@ -29,13 +38,13 @@ class HelpAction(Action):
         args: list[str],
     ) -> GobiError | None:
         if args == []:
-            self.help()
+            self.help_menu()
         elif args[0] == "recipe":
             if len(args) == 1:
-                print("Help for all loaded recipes:")
+                print("Help for all loaded recipes:\n")
                 for recipe in sorted(recipes.keys()):
                     surround_print("Help menu for: " + recipe)
-                    recipes[recipe].help()
+                    print(f"\n{recipes[recipe].help().strip()}\n")
             else:
                 for recipe in args[1:]:
                     surround_print("Help menu for: " + recipe)
@@ -44,13 +53,13 @@ class HelpAction(Action):
                         if recipe_obj is not None:
                             print(f"Unknown recipe: {recipe}")
                     else:
-                        recipes[recipe].help()
+                        print(f"\n{recipes[recipe].help().strip()}\n")
         elif args[0] == "action":
             if len(args) == 1:
                 print("Help for all loaded actions:")
                 for action in sorted(actions, key=lambda a: a.subname + a.name):
                     surround_print("Help menu for: " + action.name)
-                    action.help()
+                    print(f"\n{action.help().strip()}\n")
             else:
                 for action in args[1:]:
                     possible_actions = list(filter(lambda a: a.subname == action, actions))
@@ -58,11 +67,14 @@ class HelpAction(Action):
                         return GobiError(self, 1, f"Unknown action: {action}")
                     for action in possible_actions:
                         surround_print("Help menu for: " + action.name)
-                        action.help()
+                        print(f"\n{action.help().strip()}\n")
 
 class HelpRecipe(Recipe):
     def __init__(self):
         self.name = "help"
+
+    def help(self) -> str:
+        return "Generates the help action for gobi."
 
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         return [HelpAction()]
