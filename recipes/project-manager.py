@@ -27,10 +27,10 @@ class ProjectManagerWhereAction(Action):
         print(project_data[args[0]])
 
 
-class PorjectManagerAddAction(Action):
+class ProjectManagerRegisterAction(Action):
     def __init__(self) -> None:
-        self.name = "project-manager.add"
-        self.subname = "add"
+        self.name = "project-manager.register"
+        self.subname = "register"
 
     def run(
         self,
@@ -63,6 +63,13 @@ class PorjectManagerAddAction(Action):
         if project_name in gobi_file_data["gobi"]["projects"]:
             return GobiError(self, 1, f"Project {project_name} already exists")
 
+        # check that path exists
+        if not os.path.exists(gobi_file_path):
+            return GobiError(self, 1, f"Gobi file {gobi_file_path} does not exist")
+        
+        # expand path to absolute path
+        gobi_file_path = os.path.abspath(gobi_file_path)
+
         # add project to gobi file
         gobi_file_data["gobi"]["projects"][project_name] = gobi_file_path
 
@@ -75,10 +82,10 @@ class PorjectManagerAddAction(Action):
         gobi_file.data = new_gobi_file.data
 
 
-class PorjectManagerRemoveAction(Action):
+class ProjectManagerDeregisterAction(Action):
     def __init__(self) -> None:
-        self.name = "project-manager.remove"
-        self.subname = "remove"
+        self.name = "project-manager.deregister"
+        self.subname = "deregister"
 
     def run(
         self,
@@ -204,8 +211,8 @@ class ProjectManagerRecipe(Recipe):
     def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
         return [
             ProjectManagerWhereAction(),
-            PorjectManagerAddAction(),
-            PorjectManagerRemoveAction(),
+            ProjectManagerRegisterAction(),
+            ProjectManagerDeregisterAction(),
             PorjectManagerPruneAction(),
         ]
 

@@ -115,7 +115,7 @@ class ShellRecipe(Recipe):
         global_config.params = global_data.get("params", [])
         global_config.env = global_data.get("env", {})
         global_config.eval_env = global_data.get("eval-env", {})
-        global_config.cwd = os.getcwd()
+        global_config.cwd = global_data.get("cwd", os.getcwd())
 
         actions = []
 

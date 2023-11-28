@@ -74,7 +74,7 @@ command="""
 Save this file and add it as a project by running:
 
 ```bash
-gobi add example-project path/to/example/gobi.toml
+gobi register example-project path/to/example/gobi.toml
 ```
 Note this requires the "project-manager" manager recipe to be loaded in the core gobi file.
 
