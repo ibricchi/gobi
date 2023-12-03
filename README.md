@@ -9,7 +9,7 @@ Gobi, stylized in lowercase as gobi, is a command line utility to conveniently m
 To install just clone the repository and make a symlink to the `gobi` script in your path.
 
 ```bash
-git clone github.com/ibricchi/gobi ~/.gobi
+git clone github.com/ibricchi/gobi ~/.gobi --recurse-submodules
 ln -s ~/.gobi/gobi ~/bin/gobi
 ```
 
