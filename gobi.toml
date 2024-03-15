@@ -8,6 +8,7 @@ recipes = [
 child-recipes = [
     "list",
     "help",
+    "shell",
 ]
 
 [shell.hello]
