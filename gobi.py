@@ -26,5 +26,5 @@ if __name__ == "__main__":
 
     if result is not None:
         print(f"\033[31m[{result.source.name}]:")
-        print(f"\033[31m{result.msg}")
+        print(f"\033[31m{result.msg}\033[0m")
         exit(result.code)
