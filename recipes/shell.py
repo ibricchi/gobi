@@ -5,6 +5,7 @@ import shutil
 import subprocess as sp
 import tempfile as tf
 from string import Template
+import time
 
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe
@@ -12,6 +13,7 @@ from utils.recipes import GobiError, Action, Recipe
 
 class ShellConfig:
     shell: str
+    extension: str
     params: list[str]
     env: dict[str, str]
     eval_env: dict[str, str]
@@ -21,6 +23,7 @@ class ShellConfig:
     def copy(self) -> ShellConfig:
         new = ShellConfig()
         new.shell = self.shell
+        new.extension = self.extension
         new.params = self.params.copy()
         new.env = self.env.copy()
         new.eval_env = self.eval_env.copy()
@@ -64,24 +67,26 @@ class ShellAction(Action):
         for key, value in self.config.eval_env.items():
             command_file = tf.NamedTemporaryFile(
                 mode="w",
+                suffix=self.config.extension,
+                delete=False,
             )
-            with tf.NamedTemporaryFile(mode="w") as command_file:
-                command_file.write(value)
-                command_file.flush()
-                res = sp.run(
-                    command_base + [command_file.name],
-                    cwd = eval_env_cwd,
-                    capture_output=True,
-                    text=True,
-                    env=env,
+            command_file.write(value)
+            command_file.close()
+            res = sp.run(
+                command_base + [command_file.name],
+                cwd = eval_env_cwd,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            os.remove(command_file.name)
+            if res.returncode != 0:
+                return GobiError(
+                    self,
+                    res.returncode,
+                    "Shell action failed to setup eval envs, failed at " + key,
                 )
-                if res.returncode != 0:
-                    return GobiError(
-                        self,
-                        res.returncode,
-                        "Shell action failed to setup eval envs, failed at " + key,
-                    )
-                env[key] = res.stdout.strip()
+            env[key] = res.stdout.strip()
 
         # add normal env
         for key, value in self.config.env.items():
@@ -93,14 +98,19 @@ class ShellAction(Action):
             return GobiError(self, 1, f"cwd '{cwd}' does not exist")
 
         # run command
-        with tf.NamedTemporaryFile(mode="w") as command_file:
-            command_file.write(self.command)
-            command_file.flush()
-            res = sp.run(
-                command_base + [command_file.name] + args,
-                env=env,
-                cwd=cwd,
-            )
+        command_file = tf.NamedTemporaryFile(
+            mode="w",
+            suffix=self.config.extension,
+            delete=False,
+        )
+        command_file.write(self.command)
+        command_file.close()
+        res = sp.run(
+            command_base + [command_file.name] + args,
+            env=env,
+            cwd=cwd,
+        )
+        os.remove(command_file.name)
 
         if res.returncode != 0:
             return GobiError(self, res.returncode, "Shell command failed")
@@ -123,6 +133,9 @@ This recipe uses the following configuration options:
 
 [shell.<action name>.shell] (optional) : str
     shell to use, defaults to /bin/sh
+
+[shell.<action name>.extension] (optional) : str
+    extension to set for the command file, defaults to empty string (mostly useful for windows)
 
 [shell.<action name>.params] (optional) : list[str]
     list of params to pass to shell, defaults to []
@@ -149,6 +162,7 @@ The action name "gobi" is reserved to override default shell config for all acti
         global_data = data.get("gobi", {})
         global_config = ShellConfig()
         global_config.shell = global_data.get("shell", "/bin/sh")
+        global_config.extension = global_data.get("extension", "")
         global_config.params = global_data.get("params", [])
         global_config.env = global_data.get("env", {})
         global_config.eval_env = global_data.get("eval-env", {})
@@ -163,6 +177,7 @@ The action name "gobi" is reserved to override default shell config for all acti
                 continue
             config = global_config.copy()
             config.shell = action_data.get("shell", config.shell)
+            config.extension = action_data.get("extension", config.extension)
             config.params = action_data.get("params", config.params)
             config.env = config.env | action_data.get("env", {})
             config.eval_env = config.eval_env | action_data.get("eval-env", {})
