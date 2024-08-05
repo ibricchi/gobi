@@ -11,6 +11,7 @@ def surround_print(text: str) -> None:
 
 class HelpAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "help"
         self.subname = "help"
 

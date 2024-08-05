@@ -15,10 +15,15 @@ class GobiError:
         self.msg = msg
         self.source = action
 
-
 class Action:
     name: str
     subname: str
+    priority: bool
+
+    def __init__(self):
+        self.name = ""
+        self.subname = ""
+        self.priority = True
 
     def help(self) -> str:
         return "No help available"

@@ -6,6 +6,7 @@ from utils.recipes import GobiError, Action, Recipe, load_recipe
 
 class GobiAction(Action):
     def __init__(self, subname: str, path: str) -> None:
+        super().__init__()
         if subname == "":
             self.name = "gobi"
         else:
@@ -44,6 +45,10 @@ class GobiAction(Action):
 
         # find actions with matching subname
         possible_actions = list(filter(lambda a: a.subname == args[0], gobi_actions))
+        if len(possible_actions) > 1:
+            priority_possible_actions = list(filter(lambda a: a.priority, possible_actions))
+            if len(priority_possible_actions) != 0:
+                possible_actions = priority_possible_actions
         match possible_actions:
             case []:
                 # try finding actions with matching name

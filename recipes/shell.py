@@ -40,6 +40,7 @@ class ShellAction(Action):
         return self.config.help
 
     def __init__(self, name, subname, config, command) -> None:
+        super().__init__()
         self.name = name
         self.subname = subname
         self.config = config
@@ -60,6 +61,10 @@ class ShellAction(Action):
 
         # add environ variables
         env = os.environ.copy()
+
+        # add default env variables
+        env["GOBI_ACTION"] = env.get("GOBI_ACTION", self.subname)
+        env["GOBI_PATH"] = env.get("GOBI_PATH", gobi_file.path)
 
         eval_env_cwd = os.path.dirname(gobi_file.path)
 

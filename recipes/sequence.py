@@ -14,6 +14,7 @@ class SequenceConfig:
 
 class SequenceAction(Action):
     def __init__(self, name: str, config: SequenceConfig) -> None:
+        super().__init__()
         self.name = "sequence." + name
         self.subname = name
         self.config = config

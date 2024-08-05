@@ -6,6 +6,7 @@ from utils.recipes import GobiError, Action, Recipe
 
 class TemplateAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "template"
         self.subname = "template"
 

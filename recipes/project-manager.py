@@ -9,6 +9,7 @@ from utils.recipes import GobiError, Action, Recipe
 
 class ProjectManagerWhereAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "project-manager.where"
         self.subname = "where"
 
@@ -36,6 +37,7 @@ Usage: gobi <project list...>? where <project name>
 
 class ProjectManagerRegisterAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "project-manager.register"
         self.subname = "register"
 
@@ -102,6 +104,7 @@ gobi file path: path to the gobi file for the project
 
 class ProjectManagerDeregisterAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "project-manager.deregister"
         self.subname = "deregister"
 
@@ -149,6 +152,7 @@ project name: name of the action that will load the project
 
 class ProjectManagerPruneAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "project-manager.prune"
         self.subname = "prune"
 

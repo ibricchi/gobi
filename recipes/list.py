@@ -6,6 +6,7 @@ from utils.recipes import GobiError, Action, Recipe
 
 class ListAction(Action):
     def __init__(self) -> None:
+        super().__init__()
         self.name = "list"
         self.subname = "list"
 
