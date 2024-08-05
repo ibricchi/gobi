@@ -15,6 +15,3 @@ child-recipes = [
 command="""
     echo "hello world!"
 """
-
-[gobi.projects]
-carrot = "C:\\Users\\ibricchi\\Documents\\carrot\\gobi.ps1.toml"
