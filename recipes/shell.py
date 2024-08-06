@@ -62,13 +62,8 @@ class ShellAction(Action):
         # add environ variables
         env = os.environ.copy()
 
-        # add default env variables
-        env["GOBI_ACTION"] = env.get("GOBI_ACTION", self.subname)
-        env["GOBI_PATH"] = env.get("GOBI_PATH", gobi_file.path)
-
-        eval_env_cwd = os.path.dirname(gobi_file.path)
-
         # add eval env
+        eval_env_cwd = os.path.dirname(gobi_file.path)
         for key, value in self.config.eval_env.items():
             command_file = tf.NamedTemporaryFile(
                 mode="w",

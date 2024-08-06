@@ -3,6 +3,7 @@ from __future__ import annotations
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe, load_recipe
 
+import os
 
 class GobiAction(Action):
     def __init__(self, subname: str, path: str) -> None:
@@ -65,6 +66,9 @@ class GobiAction(Action):
                     self, 1, f"INTERNAL ERROR: Multiple actions with name {args[0]}"
                 )
             case [action]:
+                os.environ["GOBI_PROJECT"] = self.subname
+                os.environ["GOBI_ACTION"] = action.subname
+                os.environ["GOBI_PATH"] = self.path
                 return action.run(
                     gobi_file, gobi_recipe.current_recipes, gobi_actions, args[1:]
                 )
