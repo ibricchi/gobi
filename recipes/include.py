@@ -62,13 +62,14 @@ Note! imported actions will be considered lower priority than ones defined in th
                     return GobiError(self, -1, f"Failed to read gobi file {path}: {gobi_file.error}")
                 
             gobi_recipe = GobiRecipe()
-            new_actions = gobi_recipe.create_actions(gobi_file)
-            if isinstance(new_actions, GobiError):
-                return new_actions
+            new_actions_info = gobi_recipe.create_actions(gobi_file)
+            if isinstance(new_actions_info, GobiError):
+                return new_actions_info
             else:
-                actions.extend(new_actions[0])
+                new_actions, new_deps = new_actions_info
+                actions.extend(new_actions)
                 deps.append(path)
-                deps.extend(new_actions[1])
+                deps.extend(new_deps)
 
         for action in actions:
             action.name = f"{name}.{action.name}"

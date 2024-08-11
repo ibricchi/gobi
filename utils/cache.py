@@ -11,6 +11,7 @@ base_dir = os.path.dirname(os.path.realpath(__file__))
 
 class Cache:
     cache_dir = os.environ.get("GOBI_CACHE_DIR", os.path.realpath(os.path.join(base_dir, "..", ".cache")))
+    enabled = os.environ.get("GOBI_CACHE_ENABLED", "true") == "true"
 
     @staticmethod
     def get_cache_file(action: Action | Recipe, path: str, extra: str | None = None) -> str:
@@ -27,7 +28,10 @@ class Cache:
         return os.path.join(Cache.cache_dir, id_hash)
 
     @staticmethod
-    def try_read(action: Action | Recipe, path: str, extra: str | None = None) -> Any:
+    def try_read(action: Action | Recipe, path: str, extra: str | None = None) -> Any | None:
+        if not Cache.enabled:
+            return None
+
         cached_file = Cache.get_cache_file(action, path, extra)
         
         data = None
@@ -49,10 +53,15 @@ class Cache:
                 return data.get("data")
         
         if os.path.exists(cached_file):
-            os.unlink(cached_file)        
+            os.unlink(cached_file)   
+
+        return None     
 
     @staticmethod
     def try_store(data: Any, cache_deps: list[str], action: Action | Recipe, path: str, extra: str | None = None) -> bool:
+        if not Cache.enabled:
+            return False
+
         data = {
             "data": data,
             "cache_deps": cache_deps

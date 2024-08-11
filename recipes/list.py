@@ -1,4 +1,5 @@
 from __future__ import annotations
+from re import sub
 
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe
@@ -26,19 +27,26 @@ Full will print out the full name of all actions.
             for action in sorted(actions, key=lambda a: a.subname):
                 print(action.name)
         else:
-            minimal_name: dict[str, list[str]] = {}
+            minimal_name: dict[str, list[Action]] = {}
             for action in actions:
                 if action.subname not in minimal_name:
-                    minimal_name[action.subname] = [action.name]
+                    minimal_name[action.subname] = [action]
                 else:
-                    minimal_name[action.subname].append(action.name)
+                    minimal_name[action.subname].append(action)
             sorted_subnames = sorted(minimal_name.keys())
             for subname in sorted_subnames:
-                if len(minimal_name[subname]) == 1:
+                actions = minimal_name[subname]
+                priority_actions = [a for a in actions if a.priority]
+                if len(priority_actions) == 1:
+                    print(subname)
+                elif len(priority_actions) > 1:
+                    for a in sorted(priority_actions, key=lambda a: a.name):
+                        print(a.name)
+                elif len(actions) == 1:
                     print(subname)
                 else:
-                    for name in sorted(minimal_name[subname]):
-                        print(name)
+                    for a in sorted(actions, key=lambda a: a.name):
+                        print(a.name)
 
     def run(
         self,
