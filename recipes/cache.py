@@ -23,7 +23,6 @@ class CacheAction(Action):
     def help(self) -> str:
         return """
 Cache utility built into gobi, and used by some recipes
-Cache action has two options:
 Usage: gobi <project list...>? list [size|clear] [args...]
 
 The subaction size will return the size of the current cache director

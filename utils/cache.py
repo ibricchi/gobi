@@ -6,11 +6,12 @@ from utils.recipes import Recipe, Action
 import os
 import pickle
 import hashlib
+import pathlib
 
 base_dir = os.path.dirname(os.path.realpath(__file__))
 
 class Cache:
-    cache_dir = os.environ.get("GOBI_CACHE_DIR", os.path.realpath(os.path.join(base_dir, "..", ".cache")))
+    cache_dir = os.environ.get("GOBI_CACHE_DIR", os.path.realpath(os.path.join(pathlib.Path.home(), ".cache", "gobi")))
     enabled = os.environ.get("GOBI_CACHE_ENABLED", "true") == "true"
 
     @staticmethod

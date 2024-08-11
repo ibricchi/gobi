@@ -3,6 +3,8 @@
 from __future__ import annotations
 import sys
 import os
+import pathlib
+import shutil
 
 base_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -19,7 +21,12 @@ if __name__ == "__main__":
     sys.path.append(os.path.join(base_dir, "recipes"))
     if (custom_recipe_path := os.environ.get("GOBI_CUSTOM_RECIPES")) is not None:
         sys.path.append(custom_recipe_path)
-    main_gobi_file = os.environ.get("GOBI_CORE_FILE", os.path.join(base_dir, "gobi.toml"))
+    main_gobi_file = os.environ.get("GOBI_CORE_FILE", os.path.join(pathlib.Path.home(), ".config", "gobi", "gobi.toml"))
+
+    # make the gobi file if not present
+    if not os.path.exists(main_gobi_file):
+        os.makedirs(os.path.dirname(main_gobi_file), exist_ok=True)
+        shutil.copy(os.path.join(base_dir, "gobi.toml"), main_gobi_file)
 
     # setup cache dir if not present
     if os.path.exists(Cache.cache_dir):

@@ -98,9 +98,10 @@ class GobiRemoteCacheAction(Action):
     def help(self) -> str:
         return """
 Manage caches of remote-project configs in this file
-Usage: gobi <project list...>? remote-cache [clear] [args...]
+Usage: gobi <project list...>? remote-cache [clear|show] [args...]
 
 The subaction clear will clear all cached data, the option -y can be passed in to ignore the prompt
+The subaction show will show the path to where the cached version of the remote gobi file is stored
 """
 
     def run(
