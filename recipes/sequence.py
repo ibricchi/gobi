@@ -47,7 +47,7 @@ class SequenceAction(Action):
                 case _:
                     return GobiError(self, 1, f"Action {action} is ambiguous")
 
-        errors = []
+        errors: list[GobiError] = []
         for action in actions_to_run:
             res = action.run(gobi_file, recipes, actions, [])
             if self.config.allow_fail and res is not None:
@@ -60,7 +60,7 @@ class SequenceAction(Action):
             return GobiError(
                 self,
                 errors[0].code,
-                f"Action {res.source.name} failed with msg:\n  {errors[0].msg}",
+                f"Action {errors[0].source.name} failed with msg:\n  {errors[0].msg}",
             )
         elif len(errors) > 1:
             return GobiError(
@@ -89,7 +89,7 @@ This recipe uses the following configuration options:
     if true, continue running actions even if one fails
 """
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
         data = gobi_file.data.get("sequence", {})
 
         actions = []
@@ -99,7 +99,7 @@ This recipe uses the following configuration options:
             config = SequenceConfig(sub_actions, allow_fail)
             actions.append(SequenceAction(action, config))
             
-        return actions
+        return actions, []
 
 
 def create() -> Recipe:

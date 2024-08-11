@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe, load_recipe
+from utils.cache import Cache
 
 import os
 
@@ -25,9 +26,9 @@ class GobiAction(Action):
 
     def run(
         self,
-        _gobi_file: GobiFile,
-        _recipes: dict[str, Recipe],
-        _actions: dict[str, Action],
+        _gobi_file: GobiFile | None,
+        _recipes: dict[str, Recipe] | None,
+        _actions: dict[str, Action] | None,
         args: list[str],
     ) -> GobiError | None:
         gobi_file: GobiFile = GobiFile(self.path)
@@ -45,22 +46,23 @@ class GobiAction(Action):
             return GobiError(self, 1, "No action specified")
 
         # find actions with matching subname
-        possible_actions = list(filter(lambda a: a.subname == args[0], gobi_actions))
+        possible_actions = [a for a in gobi_actions[0] if a.subname == args[0]]
         if len(possible_actions) > 1:
-            priority_possible_actions = list(filter(lambda a: a.priority, possible_actions))
+            priority_possible_actions = [a for a in possible_actions if a.priority]
             if len(priority_possible_actions) != 0:
                 possible_actions = priority_possible_actions
         match possible_actions:
             case []:
                 # try finding actions with matching name
-                possible_actions = list(
-                    filter(lambda a: a.name == args[0], gobi_actions)
-                )
+                possible_actions = [a for a in gobi_actions[0] if a.name == args[0]]
                 if len(possible_actions) == 0:
                     return GobiError(self, 1, f"Unknown action: {args[0]}")
                 if len(possible_actions) == 1:
+                    os.environ["GOBI_PROJECT"] = self.subname
+                    os.environ["GOBI_ACTION"] = possible_actions[0].subname
+                    os.environ["GOBI_PATH"] = self.path
                     return possible_actions[0].run(
-                        gobi_file, gobi_recipe.current_recipes, gobi_actions, args[1:]
+                        gobi_file, gobi_recipe.current_recipes, gobi_actions[0], args[1:]
                     )
                 return GobiError(
                     self, 1, f"INTERNAL ERROR: Multiple actions with name {args[0]}"
@@ -70,7 +72,7 @@ class GobiAction(Action):
                 os.environ["GOBI_ACTION"] = action.subname
                 os.environ["GOBI_PATH"] = self.path
                 return action.run(
-                    gobi_file, gobi_recipe.current_recipes, gobi_actions, args[1:]
+                    gobi_file, gobi_recipe.current_recipes, gobi_actions[0], args[1:]
                 )
             case _:
                 return GobiError(
@@ -109,16 +111,56 @@ This recipe uses the following configuration options:
     dictionary of project names to paths, used to create actions for gobi files
 """
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
         config = gobi_file.data.get("gobi", {})
+
+        cached_data = Cache.try_read(self, gobi_file.path)
+        if cached_data is not None:
+            # load recipes
+            recipe_names = config.get("recipes", [])
+            recipes: dict[str, Recipe] = {}
+            for recipe_name in recipe_names:
+                if recipe_name in GobiRecipe.permanent_recipes:
+                    continue
+
+                if recipe_name not in GobiRecipe.loaded_recipes:
+                    new_recipe = load_recipe(recipe_name)
+                    if new_recipe is None:
+                        return GobiError(
+                            self,
+                            1,
+                            f"Could not find {recipe_name}.py, if using a custom recipe, make sure to add it to GOBI_RECIPE_PATH",
+                        )
+                    GobiRecipe.loaded_recipes[recipe_name] = new_recipe
+                recipes[recipe_name] = GobiRecipe.loaded_recipes[recipe_name]
+            # add both to list of current recipes
+            self.current_recipes = GobiRecipe.permanent_recipes | recipes
+
+            # load child_recipes
+            child_recipe_names = config.get("child-recipes", [])
+            for recipe_name in child_recipe_names:
+                if recipe_name in GobiRecipe.permanent_recipes:
+                    continue
+                if recipe_name not in GobiRecipe.loaded_recipes:
+                    recipe = load_recipe(recipe_name)
+                    if recipe is None:
+                        return GobiError(self, -1, f"Couldn't load recipe {recipe_name}")
+                    GobiRecipe.loaded_recipes[recipe_name] = recipe
+                    continue
+                GobiRecipe.permanent_recipes[recipe_name] = GobiRecipe.loaded_recipes[
+                    recipe_name
+                ]
+            return cached_data["actions"], []
 
         # get actions from permanent recipes
         actions: list[Action] = []
+        deps: list[str] = []
         for _, recipe in GobiRecipe.permanent_recipes.items():
             recipe_actions = recipe.create_actions(gobi_file)
             if isinstance(recipe_actions, GobiError):
                 return recipe_actions
-            actions += recipe_actions
+            actions += recipe_actions[0]
+            deps += recipe_actions[1]
 
         # load recipes
         recipe_names = config.get("recipes", [])
@@ -144,7 +186,8 @@ This recipe uses the following configuration options:
             recipe_actions = recipe.create_actions(gobi_file)
             if isinstance(recipe_actions, GobiError):
                 return recipe_actions
-            actions += recipe_actions
+            actions.extend(recipe_actions[0])
+            deps.extend(recipe_actions[1])
 
         # add both to list of current recipes
         self.current_recipes = GobiRecipe.permanent_recipes | recipes
@@ -155,7 +198,10 @@ This recipe uses the following configuration options:
             if recipe_name in GobiRecipe.permanent_recipes:
                 continue
             if recipe_name not in GobiRecipe.loaded_recipes:
-                GobiRecipe.loaded_recipes[recipe_name] = load_recipe(recipe_name)
+                recipe = load_recipe(recipe_name)
+                if recipe is None:
+                    return GobiError(self, -1, f"Couldn't load recipe {recipe_name}")
+                GobiRecipe.loaded_recipes[recipe_name] = recipe
                 continue
             GobiRecipe.permanent_recipes[recipe_name] = GobiRecipe.loaded_recipes[
                 recipe_name
@@ -166,7 +212,14 @@ This recipe uses the following configuration options:
         for project_name, project_path in gobi_projects.items():
             actions.append(GobiAction(project_name, project_path))
 
-        return actions
+        # this is to avoid gobi_files from tmp files    
+        if gobi_file.cacheable:
+            data_to_cache = {
+                "actions": actions
+            }
+            Cache.try_store(data_to_cache, [gobi_file.path, *deps], self, gobi_file.path)
+
+        return actions, []
 
 
 def create() -> Recipe:

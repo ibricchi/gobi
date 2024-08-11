@@ -68,8 +68,8 @@ class ListRecipe(Recipe):
     def help(self) -> str:
         return "Generates the list action for gobi."
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
-        return [ListAction()]
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
+        return [ListAction()], []
 
 
 def create() -> Recipe:

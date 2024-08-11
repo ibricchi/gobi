@@ -77,8 +77,8 @@ class HelpRecipe(Recipe):
     def help(self) -> str:
         return "Generates the help action for gobi."
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
-        return [HelpAction()]
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
+        return [HelpAction()], []
 
 
 def create() -> Recipe:

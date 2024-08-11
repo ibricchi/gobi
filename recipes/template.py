@@ -23,8 +23,8 @@ class TemplateRecipe(Recipe):
     def __init__(self):
         self.name = "template"
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
-        return [TemplateAction()]
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
+        return [TemplateAction()], []
 
 
 def create() -> Recipe:

@@ -29,7 +29,11 @@ class Action:
         return "No help available"
 
     def run(
-        self, recipes: list[Recipe], actions: list[Action], args: list[str]
+        self,
+        gobi_file: GobiFile,
+        recipes: dict[str, Recipe],
+        actions: list[Action],
+        args: list[str],
     ) -> GobiError | None:
         raise NotImplementedError()
 
@@ -40,7 +44,7 @@ class Recipe:
     def help(self) -> str:
         return "No help available"
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
         raise NotImplementedError()
 
 

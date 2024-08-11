@@ -1,15 +1,17 @@
 from __future__ import annotations
+from typing import Any
 
 import tomli
 
-
 class GobiFile:
     path: str
-    data: dict[str, any]
+    data: dict[str, Any]
     error: str | None = None
+    cacheable: bool
 
     def __init__(self, path):
         self.path = path
+        self.cacheable = True
 
         try: 
             with open(path, "rb") as f:

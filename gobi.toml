@@ -4,6 +4,7 @@ recipes = [
     "help",
     "shell",
     "project-manager",
+    "cache",
 ]
 child-recipes = [
     "list",

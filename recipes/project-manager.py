@@ -224,13 +224,13 @@ class ProjectManagerRecipe(Recipe):
     def __init__(self):
         self.name = "project-manager"
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
         return [
             ProjectManagerWhereAction(),
             ProjectManagerRegisterAction(),
             ProjectManagerDeregisterAction(),
             ProjectManagerPruneAction(),
-        ]
+        ], []
 
 
 def create() -> Recipe:

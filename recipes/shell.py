@@ -155,7 +155,7 @@ This recipe uses the following configuration options:
 The action name "gobi" is reserved to override default shell config for all actions in the project. "command" cannot provide defaults.
 """
 
-    def create_actions(self, gobi_file: GobiFile) -> GobiError | list[Action]:
+    def create_actions(self, gobi_file: GobiFile) -> GobiError | tuple[list[Action], list[str]]:
         data = gobi_file.data.get("shell", {})
 
         # first we get the global shell config
@@ -186,7 +186,7 @@ The action name "gobi" is reserved to override default shell config for all acti
             command = action_data.get("command")
             actions.append(ShellAction("shell." + action, action, config, command))
 
-        return actions
+        return actions, []
 
 
 def create() -> Recipe:
