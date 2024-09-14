@@ -10,8 +10,35 @@ import time
 from utils.loader import GobiFile
 from utils.recipes import GobiError, Action, Recipe
 
+DEFAULT_SHELL     = lambda : "/bin/sh"
+DEFAULT_EXTENSION = lambda : ""
+DEFAULT_PARAMS    = lambda : []
+DEFAULT_ENV       = lambda : {}
+DEFAULT_EVAL_ENV  = lambda : {}
+DEFAULT_CWD       = lambda : os.getcwd()
+DEFAULT_HELP      = lambda : "No help provided"
 
 class ShellConfig:
+    shell: str | None
+    extension: str | None
+    params: list[str] | None
+    env: dict[str, str] | None
+    eval_env: dict[str, str] | None
+    cwd: str | None
+    help: str | None
+
+    def copy(self) -> ShellConfig:
+        new = ShellConfig()
+        new.shell = self.shell
+        new.extension = self.extension
+        new.params = None if self.params is None else self.params.copy()
+        new.env = None if self.env is None else self.env.copy()
+        new.eval_env = None if self.eval_env is None else self.eval_env.copy()
+        new.cwd = self.cwd
+        new.help = self.help
+        return new
+
+class CompleteShellConfig:
     shell: str
     extension: str
     params: list[str]
@@ -20,24 +47,21 @@ class ShellConfig:
     cwd: str
     help: str
 
-    def copy(self) -> ShellConfig:
-        new = ShellConfig()
-        new.shell = self.shell
-        new.extension = self.extension
-        new.params = self.params.copy()
-        new.env = self.env.copy()
-        new.eval_env = self.eval_env.copy()
-        new.cwd = self.cwd
-        new.help = self.help
-        return new
-
+    def __init__(self, config: ShellConfig):
+        self.shell = DEFAULT_SHELL() if config.shell is None else config.shell
+        self.extension = DEFAULT_EXTENSION() if config.extension is None else config.extension
+        self.params = DEFAULT_PARAMS() if config.params is None else config.params.copy()
+        self.env = DEFAULT_ENV() if config.env is None else config.env.copy()
+        self.eval_env = DEFAULT_EVAL_ENV() if config.eval_env is None else config.eval_env.copy()
+        self.cwd = DEFAULT_CWD() if config.cwd is None else config.cwd
+        self.help = DEFAULT_HELP() if config.help is None else config.help
 
 class ShellAction(Action):
     config: ShellConfig
     command: str
 
     def help(self) -> str:
-        return self.config.help
+        return DEFAULT_HELP() if self.config.help is None else self.config.help
 
     def __init__(self, name, subname, config, command) -> None:
         super().__init__()
@@ -53,21 +77,23 @@ class ShellAction(Action):
         actions: dict[str, Action],
         args: list[str],
     ) -> GobiError | None:
-        command_base = [self.config.shell] + self.config.params
+        run_config = CompleteShellConfig(self.config)
+
+        command_base = [run_config.shell] + run_config.params
         
         # make sure shell is a valid executable
-        if not shutil.which(self.config.shell):
-            return GobiError(self, 1, f"Shell '{self.config.shell}' is not a valid executable")
+        if not shutil.which(run_config.shell):
+            return GobiError(self, 1, f"Shell '{run_config.shell}' is not a valid executable")
 
         # add environ variables
         env = os.environ.copy()
 
         # add eval env
         eval_env_cwd = os.path.dirname(gobi_file.path)
-        for key, value in self.config.eval_env.items():
+        for key, value in run_config.eval_env.items():
             command_file = tf.NamedTemporaryFile(
                 mode="w",
-                suffix=self.config.extension,
+                suffix=run_config.extension,
                 delete=False,
             )
             command_file.write(value)
@@ -89,18 +115,18 @@ class ShellAction(Action):
             env[key] = res.stdout.strip()
 
         # add normal env
-        for key, value in self.config.env.items():
+        for key, value in run_config.env.items():
             env[key] = Template(value).safe_substitute(env)
 
         # make sure cwd dir exist
-        cwd = Template(self.config.cwd).safe_substitute(env)
+        cwd = Template(run_config.cwd).safe_substitute(env)
         if not os.path.isdir(cwd):
             return GobiError(self, 1, f"cwd '{cwd}' does not exist")
 
         # run command
         command_file = tf.NamedTemporaryFile(
             mode="w",
-            suffix=self.config.extension,
+            suffix=run_config.extension,
             delete=False,
         )
         command_file.write(self.command)
@@ -161,13 +187,13 @@ The action name "gobi" is reserved to override default shell config for all acti
         # first we get the global shell config
         global_data = data.get("gobi", {})
         global_config = ShellConfig()
-        global_config.shell = global_data.get("shell", "/bin/sh")
-        global_config.extension = global_data.get("extension", "")
-        global_config.params = global_data.get("params", [])
-        global_config.env = global_data.get("env", {})
-        global_config.eval_env = global_data.get("eval-env", {})
-        global_config.cwd = global_data.get("cwd", os.getcwd())
-        global_config.help = global_data.get("help", "No help provided")
+        global_config.shell = global_data.get("shell", None)
+        global_config.extension = global_data.get("extension", None)
+        global_config.params = global_data.get("params", None)
+        global_config.env = global_data.get("env", None)
+        global_config.eval_env = global_data.get("eval-env", None)
+        global_config.cwd = global_data.get("cwd", None)
+        global_config.help = global_data.get("help", None)
 
         actions = []
 
@@ -179,8 +205,8 @@ The action name "gobi" is reserved to override default shell config for all acti
             config.shell = action_data.get("shell", config.shell)
             config.extension = action_data.get("extension", config.extension)
             config.params = action_data.get("params", config.params)
-            config.env = config.env | action_data.get("env", {})
-            config.eval_env = config.eval_env | action_data.get("eval-env", {})
+            config.env = ({} if config.env is None else config.env) | action_data.get("env", {})
+            config.eval_env = ({} if config.eval_env is None else config.eval_env) | action_data.get("eval-env", {})
             config.cwd = action_data.get("cwd", config.cwd)
             config.help = action_data.get("help", config.help)
             command = action_data.get("command")
