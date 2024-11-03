@@ -50,7 +50,10 @@ class Recipe:
 
 def load_recipe(name) -> Recipe | None:
     try:
-        mod = importlib.import_module(name)
+        mod = importlib.import_module(f"gobi_{name}")
+        if not hasattr(mod, "create"):
+            print(f"Recipe {name} missing 'create' function in python file")
+            exit(1)
         return mod.create()
     except ImportError:
         return None
