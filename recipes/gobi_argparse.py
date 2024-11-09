@@ -32,9 +32,16 @@ class ArgparseAction(Action):
         if not self.passthrough and len(unparsed_args) > 0:
             return GobiError(self, 1, f"Unknown argument: {unparsed_args[0]}\n{self.ap.format_help()}")
         for arg in vars(parsed_args):
+            result = getattr(parsed_args, arg)
+            if result is None:
+                continue
+            elif type(result) == bool:
+                result = "1" if result else "0"
+            else:
+                result = str(result)
             # set as environment variable
-            os.environ[f"{arg}"] = str(getattr(parsed_args, arg))
-            os.environ[f"GOBI_ARGPARSE_{arg}"] = str(getattr(parsed_args, arg))
+            os.environ[f"{arg}"] = result
+            os.environ[f"GOBI_ARGPARSE_{arg}"] = result
         
         action_to_run = None
         possible_actions = list(filter(lambda a: a.subname == self.subaction, actions))
@@ -72,14 +79,17 @@ This recipe uses the following configuration options:
     if true, allows unknown arguments to be passed to subaction
 
 Each argument is defined with the following options:
-[argparse.<action name>.args.<arg name>] (required) : str
-    name of argument
+[argparse.<action name>.[args,flags].<arg name>] (required) : str
+    name of argument / flag
 
+[argparse.<action name>.[args,flags].<arg name>.short] (optional) : str
+    short name of argument / flag
+    
 [argparse.<action name>.args.<arg name>.default] (optional) : str
     Default value for argument
 
-[argparse.<action name>.args.<arg name>.help] (optional) : str
-    Help text for argument
+[argparse.<action name>.[args,flags].<arg name>.help] (optional) : str
+    Help text for argument / flag
 
 [argparse.<action name>.args.<arg name>.required] (optional) : bool
     If true, argument is required
@@ -104,9 +114,6 @@ Each argument is defined with the following options:
 
             passthrough = cfg.get("passthrough", False)
 
-            if "args" not in cfg:
-                return GobiError(self, -1, "Argparse actions require args")
-
             args = cfg.get("args", {})
             for aname in args:
                 acfg = args.get(aname)
@@ -125,8 +132,25 @@ Each argument is defined with the following options:
                     *arg_options,
                     default=default,
                     help=help,
+                    type=str,
                     required=required,
                     choices=choises,
+                )
+
+            flags = cfg.get("flags", {})
+            for fname in flags:
+                acfg = flags.get(fname)
+                help = acfg.get("help", None)
+                short = acfg.get("short", None)
+
+                arg_options = [f"--{fname}"]
+                if short is not None:
+                    arg_options = [f"-{short}"] + arg_options
+
+                ap.add_argument(
+                    *arg_options,
+                    action="store_true",
+                    help=help,
                 )
             
             actions.append(ArgparseAction(name,subaction,passthrough,ap))
