@@ -1,18 +1,5 @@
-[gobi]
-recipes = [
-    "list",
-    "help",
-    "shell",
-    "project-manager",
-    "cache",
-]
-child-recipes = [
-    "list",
-    "help",
-    "shell",
-]
-
-[shell.hello]
-command="""
-    echo "hello world!"
+[shell.build]
+cwd = "{{ GOBI_DIR }}"
+command = """
+    cargo build --release
 """
