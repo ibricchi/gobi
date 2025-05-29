@@ -1,0 +1,2 @@
+#!/bin/bash
+exec gobi_cli run $@

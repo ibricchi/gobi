@@ -1,6 +1,0 @@
-[submodule "libs/tomlkit"]
-	path = libs/tomlkit
-	url = https://github.com/sdispater/tomlkit.git
-[submodule "libs/tomli"]
-	path = libs/tomli
-	url = https://github.com/hukkin/tomli

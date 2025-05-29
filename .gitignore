@@ -1,2 +1,12 @@
-__pycache__
-.cache
+# Rust project files
+debug/
+target/
+**/*.rs.bk
+*.pdb
+**/Cargo.lock
+
+# IDE specific files
+.vscode
+
+# gobi files
+.gobi
