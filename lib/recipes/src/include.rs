@@ -1,4 +1,3 @@
-use handlebars::Handlebars;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
@@ -10,6 +9,7 @@ use gobi_lib::{
     file::{GobiFile, GobiFileEntryTrait, GobiFileTrait},
     recipes::*,
     GobiError, GobiResult,
+    render_template
 };
 
 #[derive(Deserialize)]
@@ -96,8 +96,6 @@ Note! included actions will be considered lower priority than ones defined in th
             _ => return Ok(vec![]),
         };
 
-        let handlebars = Handlebars::new();
-
         let (err, actions) = config
             .get_table()
             .unwrap()
@@ -125,7 +123,7 @@ Note! included actions will be considered lower priority than ones defined in th
                         let mut contents = String::new();
                         file.read_to_string(&mut contents).unwrap();
 
-                        let contents = handlebars.render_template(&contents, &config.env).unwrap();
+                        let contents = render_template(&contents, &config.env, true)?;
 
                         let mut tmp_file = Builder::new()
                             .prefix("gobi")
