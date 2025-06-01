@@ -1,3 +1,4 @@
+use handlebars;
 use std::ops::Deref;
 
 pub mod file;
@@ -79,4 +80,42 @@ where
             Ok(res)
         }
     }
+}
+
+pub fn render_template<T>(template: &str, context: &T, explicit_only: bool) -> GobiResult<String>
+where
+    T: serde::Serialize,
+{
+    let mut reg = handlebars::Handlebars::new();
+
+    // unknown variables should be kept as-is
+    if explicit_only {
+        reg.register_helper(
+            "helperMissing",
+            Box::new(
+                |h: &handlebars::Helper<'_>,
+                 _: &handlebars::Handlebars<'_>,
+                 _: &handlebars::Context,
+                 _: &mut handlebars::RenderContext<'_, '_>,
+                 out: &mut dyn handlebars::Output|
+                 -> Result<(), handlebars::RenderError> {
+                    let name = h.name();
+                    let params = h
+                        .params()
+                        .iter()
+                        .map(|p| format!("'{}'", p.render()))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    write!(out, "{{{{ {} {} }}}}", name, params)?;
+                    Ok(())
+                },
+            ),
+        );
+    };
+
+    reg.render_template(template, &context)
+        .map_err(|e| GobiError {
+            code: 1,
+            msg: format!("Failed to render template: {}", e),
+        })
 }

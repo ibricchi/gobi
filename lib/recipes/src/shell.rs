@@ -1,4 +1,3 @@
-use handlebars::Handlebars;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
@@ -12,6 +11,7 @@ use gobi_lib::{
     file::{GobiFile, GobiFileEntryTrait, GobiFileTrait},
     recipes::*,
     GobiError, GobiResult,
+    render_template,
 };
 
 #[derive(Deserialize, Default)]
@@ -201,17 +201,15 @@ impl ShellAction {
             env.insert(key.to_string(), value);
         }
 
-        let reg = Handlebars::new();
-
         // setup env
         for (key, value) in &config.env {
             // templates with env vars
-            let value = reg.render_template(value, &env).unwrap();
+            let value = render_template(value, &env, false)?;
             env.insert(key.to_string(), value.to_string());
         }
 
         // check cwd
-        let cwd = reg.render_template(&config.cwd, &env).unwrap();
+        let cwd = render_template(&config.cwd, &env, false)?;
         let cwd = Path::new(cwd.as_str());
         if !cwd.is_dir() {
             return Err(GobiError {
@@ -250,8 +248,7 @@ impl IAction for ShellAction {
 
         let (shell_path, cwd, env) = self.setup_env(&config)?;
 
-        let reg = Handlebars::new();
-        let command = reg.render_template(&config.command, &env).unwrap();
+        let command = render_template(&config.command, &env, false)?;
         let (_tmp_file, mut command) = setup_command(&config, &shell_path, &command, &cwd, &env);
         for arg in args {
             command.arg(arg);
@@ -277,8 +274,7 @@ impl IAction for ShellAction {
 
         match &config.completion {
             Some(completion) => {
-                let reg = Handlebars::new();
-                let command = reg.render_template(completion, &env).unwrap();
+                let command = render_template(completion, &env, false)?;
                 let (_tmp_file, mut command) =
                     setup_command(&config, &shell_path, &command, &cwd, &env);
                 for arg in args {
