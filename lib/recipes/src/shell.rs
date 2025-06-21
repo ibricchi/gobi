@@ -10,8 +10,7 @@ use tempfile::{Builder, NamedTempFile};
 use gobi_lib::{
     file::{GobiFile, GobiFileEntryTrait, GobiFileTrait},
     recipes::*,
-    GobiError, GobiResult,
-    render_template,
+    render_template, GobiError, GobiResult,
 };
 
 #[derive(Deserialize, Default)]
@@ -27,6 +26,7 @@ struct ShellConfig {
     priority: Option<bool>,
     command: Option<String>,
     completion: Option<String>,
+    sterile: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -39,6 +39,7 @@ struct CompleteShellConfig {
     cwd: String,
     command: String,
     completion: Option<String>,
+    sterile: bool,
 }
 
 macro_rules! val_or_default {
@@ -81,6 +82,7 @@ impl CompleteShellConfig {
             ),
             command: config.command.clone().unwrap(),
             completion: config.completion.clone(),
+            sterile: config.sterile.unwrap_or(false),
         }
     }
 }
@@ -144,7 +146,7 @@ impl ShellAction {
     fn setup_env(
         &self,
         config: &CompleteShellConfig,
-    ) -> GobiResult<(PathBuf, PathBuf, HashMap<String, String>)> {
+    ) -> GobiResult<(PathBuf, PathBuf, HashMap<String, String>, HashMap<String, String>)> {
         // get shell executable
         let shell_path = match which(&config.shell) {
             Some(path) => path,
@@ -157,7 +159,12 @@ impl ShellAction {
         };
 
         // create a copy of the env
-        let mut env = env::vars().collect::<HashMap<_, _>>();
+        let mut env = if config.sterile {
+            HashMap::new()
+        } else {
+            env::vars().collect::<HashMap<_, _>>()
+        };
+        let mut template_env = env::vars().collect::<HashMap<_, _>>();
 
         // todo add eval-env / env
         // for each eval env we run the value as a command
@@ -166,7 +173,7 @@ impl ShellAction {
                 let (tmp_file, mut cmd) = setup_command(
                     config,
                     &shell_path,
-                    value,
+                    &render_template(value, &template_env, false)?,
                     &self.config_file.parent().unwrap(),
                     &env,
                 );
@@ -198,18 +205,20 @@ impl ShellAction {
                     }
                 }
             };
-            env.insert(key.to_string(), value);
+            env.insert(key.to_string(), value.clone());
+            template_env.insert(key.to_string(), value);
         }
 
         // setup env
         for (key, value) in &config.env {
             // templates with env vars
-            let value = render_template(value, &env, false)?;
+            let value = render_template(value, &template_env, false)?;
             env.insert(key.to_string(), value.to_string());
+            template_env.insert(key.to_string(), value.to_string());
         }
 
         // check cwd
-        let cwd = render_template(&config.cwd, &env, false)?;
+        let cwd = render_template(&config.cwd, &template_env, false)?;
         let cwd = Path::new(cwd.as_str());
         if !cwd.is_dir() {
             return Err(GobiError {
@@ -218,7 +227,7 @@ impl ShellAction {
             });
         }
 
-        Ok((shell_path, cwd.to_path_buf(), env))
+        Ok((shell_path, cwd.to_path_buf(), env, template_env))
     }
 }
 
@@ -246,9 +255,9 @@ impl IAction for ShellAction {
     fn run(&self, _actions: &Vec<Action>, args: Vec<String>) -> GobiResult<()> {
         let config = CompleteShellConfig::new(&self.config, &self.default);
 
-        let (shell_path, cwd, env) = self.setup_env(&config)?;
+        let (shell_path, cwd, env, template_env) = self.setup_env(&config)?;
 
-        let command = render_template(&config.command, &env, false)?;
+        let command = render_template(&config.command, &template_env, false)?;
         let (_tmp_file, mut command) = setup_command(&config, &shell_path, &command, &cwd, &env);
         for arg in args {
             command.arg(arg);
@@ -270,11 +279,11 @@ impl IAction for ShellAction {
     fn completion(&self, _actions: &Vec<Action>, args: Vec<String>) -> GobiResult<Vec<String>> {
         let config = CompleteShellConfig::new(&self.config, &self.default);
 
-        let (shell_path, cwd, env) = self.setup_env(&config)?;
+        let (shell_path, cwd, env, template_env) = self.setup_env(&config)?;
 
         match &config.completion {
             Some(completion) => {
-                let command = render_template(completion, &env, false)?;
+                let command = render_template(completion, &template_env, false)?;
                 let (_tmp_file, mut command) =
                     setup_command(&config, &shell_path, &command, &cwd, &env);
                 for arg in args {
@@ -354,6 +363,9 @@ This recipe uses the following configuration options:
 
 [shell.<action name>.help] (optional) : str
     help menu entry for the action created for a file
+
+[shell.<action name>.sterile] (optional) : bool
+    run commands in a sterile environment, template substitution is still sees the env variables, but at runtime the env is cleared, defaults to false
 
 The action name 'gobi' is reserved to override default shell config for all actions in the project. 'command' cannot provide defaults."
     }
