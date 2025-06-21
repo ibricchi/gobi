@@ -321,10 +321,9 @@ Each argument is defined with the following options:
                         Ok(ActionWrapper::new(ArgparseAction::new(&name, config)) as Action)
                     }
                     Err(e) => {
-                        println!("{:?}", e.msg);
                         Err(GobiError {
                             code: 1,
-                            msg: format!("Invalid argparse config for action '{}'", name),
+                            msg: format!("Invalid argparse config for action '{}'\n{}", name, e.msg),
                         })
                     }
                 },

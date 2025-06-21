@@ -1,5 +1,6 @@
 use std::env;
 use std::rc::Rc;
+use colored::Colorize;
 
 use gobi_lib::recipes::*;
 
@@ -43,7 +44,7 @@ fn main() {
     match mode.as_str() {
         "run" => {
             if let Err(e) = gobi_action.run(&vec![], args) {
-                eprintln!("Error: {}", e.msg);
+                eprintln!("{}", format!("Error: {}", e.msg).red());
                 std::process::exit(e.code);
             }
         }
