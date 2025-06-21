@@ -6,11 +6,11 @@ _gobi() {
     local -a completions
     local -a args
 
-    args=("${(@)words[2,-2]}")
-    
+    args=("${(@)words[2,$CURRENT]}")
+
     # Get completions from gobi_cli
-    completions=("${(@f)$(gobi_cli completion $args)}")
-    
+    completions=("${(@f)$(gobi_cli completion "${args[@]}")}")
+
     # propose completions
     if [[ -n $completions ]]; then
         _describe 'gobi options' completions

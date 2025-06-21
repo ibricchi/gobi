@@ -210,6 +210,21 @@ gobi file path: path to the gobi file for the project"
 
         gobi_file.save()
     }
+
+    fn completion(&self, _actions: &Vec<Action>, args: Vec<String>) -> GobiResult<Vec<String>> {
+        // if we have no args return an empty list
+        if args.len() != 2 {
+            return Ok(vec![]);
+        }
+
+        // list all files and directories in the current directory
+        let cwd = std::env::current_dir().map_err(|e| GobiError {
+            code: 1,
+            msg: format!("Failed to get current directory: {}", e),
+        })?;
+
+        return Ok(utils::file_path_completion(&cwd, &args[1]));
+    }
 }
 
 struct DeRegisterAction {

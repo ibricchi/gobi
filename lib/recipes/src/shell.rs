@@ -303,15 +303,10 @@ impl IAction for ShellAction {
                     }),
                 }
             }
-            None => Ok(cwd
-                .read_dir()
-                .map_err(|e| GobiError {
-                    code: 1,
-                    msg: format!("Error reading directory '{}': {}", cwd.display(), e),
-                })?
-                .filter_map(Result::ok)
-                .map(|entry| entry.file_name().into_string().unwrap_or_default())
-                .collect()),
+            None => Ok(utils::file_path_completion(
+                &cwd,
+                args.last().map_or("", |s| s.as_str()),
+            )),
         }
     }
 }

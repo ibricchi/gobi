@@ -7,6 +7,7 @@ use std::rc::Rc;
 use crate::{file::GobiFile, GobiError, GobiResult};
 
 pub mod gobi;
+pub mod utils;
 pub use toml;
 pub use toml_edit;
 

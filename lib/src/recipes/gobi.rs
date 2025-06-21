@@ -131,7 +131,7 @@ impl IAction for GobiAction {
             .recipe_manager
             .create_actions(&self.recipe_manager, &gobi_file)?;
 
-        if args.len() == 0 {
+        if args.len() < 2 {
             get_minimal_names(&actions)
                 .into_iter()
                 .map(|(_, name)| Ok(name.to_string()))
