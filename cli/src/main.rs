@@ -61,6 +61,23 @@ fn main() {
                 }
             }
         }
+        "shellrc" => {
+            if args.is_empty() {
+                eprintln!("Usage: {} shellrc <shell_type>", program_name);
+                std::process::exit(1);
+            }
+            let shell_type = &args[0];
+            match shell_type.as_str() {
+                "zsh" => {
+                    println!("{}", include_str!("shellrc/zsh"))
+                }
+                _ => {
+                    eprintln!("Unsupported shell type: {}", shell_type);
+                    eprintln!("Supported shell types: zsh");
+                    std::process::exit(1);
+                }
+            }
+        }
         _ => {
             eprintln!("Unknown mode: {}", mode);
             eprintln!("Usage: {} <mode> [args]", program_name);
