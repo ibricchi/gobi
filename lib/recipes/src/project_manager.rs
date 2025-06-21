@@ -148,6 +148,19 @@ gobi file path: path to the gobi file for the project"
             });
         }
 
+        let gobi_file_path = match gobi_file_path.canonicalize() {
+            Ok(path) => path,
+            Err(_) => {
+                return Err(GobiError {
+                    code: 1,
+                    msg: format!(
+                        "Failed to canonicalize path '{}'",
+                        gobi_file_path.to_str().unwrap_or(&args[1])
+                    ),
+                });
+            }
+        };
+
         let mut gobi_file = GobiFile::from_path_format(&self.gobi_file_path)?;
         let gobi_data = gobi_file.get_data();
 
